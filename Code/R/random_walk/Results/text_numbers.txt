@@ -1,0 +1,84 @@
+== Section 3, design ==
+scenario a (w = 1.00): peaks at 90; lower/main peak height = NA
+scenario b (w = 0.80): peaks at 67.84, 90; lower/main peak height = 0.35
+scenario c (w = 0.70): peaks at 66.43, 90; lower/main peak height = 0.52
+scenario d (w = 0.60): peaks at 65.88, 90; lower/main peak height = 0.75
+replications: 500; posterior draws: 5000
+
+== Section 3, choice of posterior summary (MAE, years) ==
+scenario a, N = 1000: RW2 mean 0.22, median 0.21, mode 0.21
+scenario a, N = 10000: RW2 mean 0.08, median 0.07, mode 0.07
+scenario b, N = 1000: RW2 mean 0.5, median 0.52, mode 0.62
+scenario b, N = 10000: RW2 mean 0.31, median 0.33, mode 0.44
+scenario c, N = 1000: RW2 mean 0.59, median 0.63, mode 0.74
+scenario c, N = 10000: RW2 mean 0.35, median 0.38, mode 0.51
+scenario d, N = 1000: RW2 mean 0.82, median 0.72, mode 0.87
+scenario d, N = 10000: RW2 mean 0.39, median 0.44, mode 0.61
+scenario d, N = 1000, bias: RW2 mean -0.35, median 0
+
+== Section 3, RW2 vs raw posterior ==
+MAE ratio raw/RW2 (posterior means), all cells: 1.38 to 10.57
+  unimodal (a): 3.79, 6.04, 10.57, 10.16
+  secondary peak (b-d), excluding d at N = 1000: 1.38 to 1.77
+example a, N = 1e4: RW2 0.08 vs raw 0.48
+d, N = 1000: raw mean MAE 3.96, RW2 mean MAE 0.82
+raw mean bias, a, N = 1000: -0.48
+RW2 mean bias, all cells except d at N = 1000: max |bias| = 0.1
+coverage raw: 0.942 to 0.996; RW2: 0.982 to 1
+width at N = 1e4, unimodal: RW2 0.52 vs raw 3.91
+width at N = 1e4, b-d: RW2 2.58, 2.86, 3.11; raw 4.13, 4.29, 4.57
+
+== Section 3, comparison with other estimators ==
+unimodal, N = 1000: RW2 mean 0.22, P-spline 0.21, Gompertz 0.2
+unimodal, N = 1e+06: RW2 mean 0.01, P-spline 0.01, Gompertz 0.01
+Gompertz bias b, c, d (range over N): -3.12/-3.09; -5.18/-5.17; -7.72/-7.7
+DDT bias, unimodal: -0.76 to -0.52
+N = 1e4, b-d: P-spline 0.2, 0.21, 0.24; RW2 mean 0.31, 0.35, 0.39
+N = 1000, b: P-spline 0.42 vs RW2 mean 0.5
+
+== Section 4, data ==
+years: 1960 to 2023; population-years: 756
+last year by country: Denmark 2023, France 2022, Italy 2021, Japan 2022, Netherlands 2022, US 2022
+lowest RW2 posterior mean at starting age 50: 72.84
+
+== Section 4, trends (RW2 posterior mean, starting age 50) ==
+Female: increase 7.86 (Netherlands) to 13.17 (Japan)
+Male: increase 6.68 (Netherlands) to 12.51 (Japan)
+width of 95% interval: median 1.12, range 0.12 to 5.46
+median width by country and sex:
+  Denmark: women 1.67, men 1.68
+  France: women 0.86, men 1.16
+  Italy: women 0.83, men 1.21
+  Japan: women 0.85, men 0.96
+  Netherlands: women 1.18, men 1.37
+  US: women 0.88, men 0.98
+median P(more than one major local mode): 0.004
+pspline: mean difference from RW2 mean 0.01, mean absolute difference 0.18, inside RW2 interval 94.6%
+ddt: mean difference from RW2 mean -0.45, mean absolute difference 0.6, inside RW2 interval 49.6%
+gompertz: mean difference from RW2 mean -0.23, mean absolute difference 0.68, inside RW2 interval 55.3%
+
+== Section 4, changes around 2020 (RW2, starting age 50) ==
+US Male: 2019 87.57 (87.31-87.87); 2020 85.18 (84.82-85.43); intervals overlap: FALSE
+US Female: 2019 89.62 (89.43-89.86); 2020 88.75 (88.42-89.12); intervals overlap: FALSE
+Italy Male: 2019 87.95 (87.63-88.25); 2020 86.69 (85.94-87.24); intervals overlap: FALSE
+France Male: 2019 88.57 (88.13-89.02); 2020 88.3 (87.98-88.56); intervals overlap: TRUE
+Denmark Female: 2019 89.1 (88.32-89.97); 2020 89.56 (88.63-90.4); intervals overlap: TRUE
+Denmark Male: 2019 87.14 (85.97-88.12); 2020 87.03 (86.42-87.62); intervals overlap: TRUE
+Italy men 1969: 73.86 (72.75-75.1); 1967: 79.31
+
+== Section 4, starting age (also Table 1) ==
+rw2_mean, 60 vs 50: mean 0.001, mean abs 0.022, max abs 0.361
+rw2_median, 60 vs 50: mean 0.003, mean abs 0.025, max abs 0.503
+rw2_mode, 60 vs 50: mean 0.004, mean abs 0.045, max abs 0.933
+gompertz, 60 vs 50: mean 0.116, mean abs 0.215, max abs 0.646
+pspline, 60 vs 50: mean 0, mean abs 0.032, max abs 1.123
+ddt, 60 vs 50: mean 0, mean abs 0, max abs 0
+rw2_mean, 70 vs 50: mean -0.002, mean abs 0.033, max abs 0.338
+rw2_median, 70 vs 50: mean -0.002, mean abs 0.036, max abs 0.496
+rw2_mode, 70 vs 50: mean -0.007, mean abs 0.053, max abs 0.945
+gompertz, 70 vs 50: mean 0.212, mean abs 0.469, max abs 1.73
+pspline, 70 vs 50: mean -0.003, mean abs 0.064, max abs 1.357
+ddt, 70 vs 50: mean 0, mean abs 0, max abs 0
+rw2_mean, 70 vs 50, mean abs change by country: 0.02 (France) to 0.06 (Denmark)
+pspline, 70 vs 50, mean abs change by country: 0.03 (Japan) to 0.1 (Denmark)
+gompertz, 70 vs 50, mean abs change by country: 0.25 (Italy) to 0.63 (France)

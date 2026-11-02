@@ -1,0 +1,553 @@
+\documentclass[12pt, letterpaper]{article}
+
+% ============================================================
+% 4. CAPTION FORMATTING
+% ============================================================
+
+\usepackage{caption}              % Customize figure/table captions
+\captionsetup{font=footnotesize}          % Set caption font size
+
+% Display "Figure 1" and "Table 1" in bold
+\makeatletter
+\renewcommand{\fnum@figure}{\textbf{Figure \thefigure}}
+\renewcommand{\fnum@table}{\textbf{Table \thetable}}
+\makeatother
+
+% ============================================================
+% 5. REFERENCES, COLORS, AND HYPERLINKS
+% ============================================================
+
+\usepackage[authoryear]{natbib} % Author-year citations
+\usepackage{xcolor}            % Custom colors
+\usepackage{url}               % Format URLs
+\usepackage{hyperref}          % Clickable links and references
+
+% Define a custom blue for hyperlinks
+\definecolor{mycustomblue}{HTML}{023C85}
+
+% Hyperlink appearance
+\hypersetup{
+    colorlinks=true,
+    linkcolor=mycustomblue, % Internal references
+    citecolor=mycustomblue, % Bibliographic citations
+    urlcolor=mycustomblue,  % External URLs
+    filecolor=mycustomblue  % Local file links
+}
+% ============================================================
+% 1. PAGE LAYOUT AND TYPOGRAPHY
+% ============================================================
+
+\usepackage[margin=2.5cm]{geometry} % Page margins
+\usepackage{setspace}              % Line spacing options
+
+% \doublespacing                   % Uncomment for double spacing
+
+% Prevent overfull lines by allowing extra spacing flexibility
+\setlength{\emergencystretch}{2em}
+
+% Optional: Times-like text and matching mathematical fonts
+\usepackage[T1]{fontenc}         % Improved font encoding
+
+% \usepackage[authordate, backend=biber, natbib=true]{biblatex-chicago}
+% \addbibresource{references.bib}
+% \renewcommand*{\bibfont}{\footnotesize}
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm, bm}
+\usepackage[ruled, lined, linesnumbered]{algorithm2e}
+\usepackage{authblk}
+\usepackage{lmodern}
+
+\newtheorem{proposition}{Proposition}
+
+\Huge\title{A Probabilistic Framework for Estimating the Modal Age at Death}
+% \author{Silvio C. Patricio \\
+%     \small\textit{University of Southern Denmark} \\
+%     \footnotesize\texttt{silviocabralpatricio@msn.com}}
+\author{%
+  \begin{minipage}[t]{0.4\textwidth}
+    \centering
+    Silvio C. Patricio\thanks{\texttt{silca@sam.sdu.dk}; ORCID: 0000-0002-1025-5571} \\
+  \end{minipage}%
+  \hspace{-0.05\textwidth}%
+  \begin{minipage}[t]{0.4\textwidth}
+    \centering
+    Paola Vazquez-Castillo\thanks{\texttt{pavaz@sdu.dk}; ORCID: 0000-0001-9680-4721}\\
+  \end{minipage}\\
+  \small{Interdisciplinary Center on Population Dynamics\\ University of Southern Denmark}\\
+}
+
+
+
+\date{}
+
+\begin{document}
+\maketitle
+
+% ------------------------------------------------------------------------------------------------------------------------------------------------- %
+
+\begin{abstract}
+    \noindent The modal age at death is used to track longevity, but existing methods report it as a single number; we estimate its probability distribution. Death counts are modeled as Poisson given the death rates and exposures, and the posterior distribution of the rates, passed through the life table, gives the probability that each age is the mode. With independent gamma priors the posterior is exact and concentrates on the true mode as the population grows. Because single-year rates are noisy, we also use a second-order random-walk prior on the log rates, which smooths the schedule as P-splines do but estimates the degree of smoothing from the data and carries its uncertainty into the result. In simulations, the random-walk posterior mean was 1.4 to 10.6 times more accurate than under independent priors and as accurate as P-spline and Gompertz estimates when the distribution of deaths was unimodal; P-splines were more accurate when it had a secondary peak. Random-walk 95\% credible intervals contained the true mode in at least 98\% of replications in every scenario. Bootstrap intervals contained it in 78\% to 95\% of replications for P-splines, never for the Gompertz model when the distribution had a secondary peak, and were four to eight times wider for the discretized derivative tests. For women in Denmark, France, Japan and Sweden since 1960, moving the starting age from 40 to 70 changed the random-walk estimate by 0.03 years on average, against 0.04 for P-splines and 0.42 for the Gompertz model.\\
+    \textbf{Keywords:} Modal age at death, Bayesian inference, Poisson--gamma model, random-walk prior, life table, uncertainty quantification
+\end{abstract}
+
+
+% ----------------------------------------------- %
+\section{Introduction}
+% ----------------------------------------------- %
+
+The modal age at death, the age at which the life-table distribution of deaths peaks, has become a standard indicator of longevity. Unlike life expectancy, it does not depend on mortality at young ages and is determined by old-age mortality, so it follows the postponement of deaths into later life \citep{kannisto2001mode, canudas2008modal, horiuchi2013modal}. Its trends have been used to separate the shifting of the distribution of deaths from its compression \citep{canudas2008modal, bergeron2015decomposing}.
+
+The mode is harder to estimate than a mean. The distribution of deaths is flat near its peak, so small random fluctuations in single-year death counts can move the highest point by a year or more. Three types of methods address this. Parametric models such as the Gompertz give the mode in closed form from the fitted parameters \citep{canudas2008modal, missov2015gompertz}. Smoothing methods fit a P-spline to the death counts and take the maximum of the smoothed distribution \citep{ouellette2011changes, horiuchi2013modal}. A third group works with the life-table deaths directly: \citet{kannisto2001mode} interpolates between the ages around the highest count, and the discretized derivative tests (DDT) of \citet{vazquez2024longevity} locate the age at which discrete versions of the conditions that define a mode are met.
+
+All of these methods return a single number. When uncertainty is reported, it comes from the bootstrap or from the delta method \citep{andreev2010spreadsheet, keyfitz2005applied}, which describe how much the estimate would vary over hypothetical repetitions of the data. Neither says how plausible each age is as the modal age of the population and year at hand, and a single number hides the common situation in which two or three neighboring ages are almost equally supported by the data.
+
+We propose to estimate the probability distribution of the modal age at death. The mode is a function of the age-specific death rates, and the rates are uncertain because they are estimated from a finite number of deaths. Describing that uncertainty with a probability distribution for the rates and carrying it through the life table gives, for each age, the probability that it is the modal age, together with a credible interval on a continuous age scale. We use two versions. In the first, the rates have independent gamma priors; the computation is then exact and some results can be derived in closed form. In the second, a random-walk prior on the log rates lets neighboring ages share information, in the same way as the penalties behind P-splines.
+
+We compare the two versions with the Gompertz, P-spline and DDT estimators in a simulation study with a known modal age and in data for women in four countries. The comparison concerns methods for estimating the modal age and describing its uncertainty. Each method is judged by the accuracy of its estimate, by how often its interval contains the true mode and how wide that interval is, and by how much the estimate depends on the age range used. Section~\ref{sec:method} develops the method, Section~\ref{sec:simulation} reports the simulation study, Section~\ref{sec:application} the application, and Section~\ref{sec:conclusion} discusses when the method should be used.
+
+% ----------------------------------------------- %
+\section{A Posterior Distribution for the Modal Age at Death}
+\label{sec:method}
+% ----------------------------------------------- %
+
+% ----------------------------------------------- %
+\subsection{The modal age is a function of the death rates}
+\label{sec:target}
+% ----------------------------------------------- %
+
+Let $x = x_0, x_0+1, \dots, \omega-1$ index single-year age intervals $[x, x+1)$, starting at an age $x_0$ and ending before the open-ended interval $\omega+$. For each age we observe the number of deaths $D_x$ and the person-years of exposure $E_x$. Let $m_x$ be the unknown death rate at age $x$, and write $\bm{m} = (m_{x_0}, \dots, m_{\omega-1})^\top$, $\bm{D}$ and $\bm{E}$ for the corresponding vectors. There are $K = \omega - x_0$ ages.
+
+Assuming a constant force of mortality within each interval, the life table is
+\begin{equation}
+q_x = 1 - e^{-m_x}, \qquad
+\ell_x = \exp\Big(-\sum_{y=x_0}^{x-1} m_y\Big), \qquad
+d_x = \ell_x \, q_x ,
+\label{eq:lifetable}
+\end{equation}
+with $\ell_{x_0} = 1$ \citep{preston2000demography}, so that $d_x$ is the probability that a person alive at age $x_0$ dies in the interval $[x, x+1)$. The modal age at death is the age with the largest $d_x$,
+\begin{equation}
+M(\bm{m}) = \operatorname*{arg\,max}_{x_0 \le x < \omega} \; d_x(\bm{m}).
+\label{eq:mode_def}
+\end{equation}
+
+Mortality below $x_0$ multiplies every $d_x$ by the same factor, the probability of surviving from birth to $x_0$, and does not move the maximum. The starting age $x_0$ is therefore needed only to exclude the peak of deaths in infancy, and the mode depends on the rates at ages $x_0$ and above alone. The target is also the \emph{life-table} distribution of deaths, not the observed distribution $D_x / \sum_y D_y$, which reflects the age structure of the population as well as its mortality.
+
+If $\bm{m}$ were known, $M$ would be a fixed number. What is uncertain is our knowledge of $\bm{m}$, which is estimated from a finite number of deaths. In a Bayesian analysis this uncertainty is described by a probability distribution for the rates given the observed data, the posterior distribution $p(\bm{m} \mid \bm{D})$ (exposures are treated as known and left implicit). Every rate schedule that is consistent with the data has its own modal age, and the probability that age $x$ is the mode is the posterior probability of the schedules whose mode is $x$:
+\begin{equation}
+\mathbb{P}(M = x \mid \bm{D}) = \int \mathbb{I}\{M(\bm{m}) = x\} \, p(\bm{m} \mid \bm{D}) \, d\bm{m},
+\label{eq:post_mode}
+\end{equation}
+where $\mathbb{I}\{\cdot\}$ is the indicator function. Equation~\eqref{eq:post_mode} is the central object of the paper. The next subsections specify $p(\bm{m} \mid \bm{D})$ and show how to evaluate the integral.
+
+% ----------------------------------------------- %
+\subsection{Death counts and the posterior distribution of the rates}
+\label{sec:posterior}
+% ----------------------------------------------- %
+
+Following \citet{brillinger1986biometrics}, we model the death count at each age as
+\begin{equation}
+D_x \mid m_x \sim \text{Poisson}(m_x E_x),
+\label{eq:poisson}
+\end{equation}
+independently across ages. This is the standard likelihood behind the occurrence--exposure rate $D_x / E_x$, which is its maximum likelihood estimator. We do not condition on the total number of deaths: conditioning independent Poisson counts on their sum gives a multinomial distribution whose cell probabilities are the expected shares of \emph{observed} deaths \citep{bishop2007discrete}, which mix mortality with age structure and are not the life-table $d_x$.
+
+For each rate we take a gamma prior, $m_x \sim \text{Gamma}(\alpha, \beta)$, independently across ages. The gamma family is conjugate to the Poisson likelihood \citep{gelman1995bayesian}, so the posterior is
+\begin{equation}
+m_x \mid \bm{D} \sim \text{Gamma}(\alpha + D_x, \; \beta + E_x),
+\label{eq:gamma_post}
+\end{equation}
+independently across ages, with shape $\alpha + D_x$ and rate $\beta + E_x$. We use $\alpha = 1/2$ and $\beta = 0$, the Jeffreys prior for a Poisson rate \citep{gelman1995bayesian}, which gives a proper posterior whenever $E_x > 0$, including ages with no deaths. The posterior mean of $m_x$ is then $(D_x + 1/2)/E_x$, essentially the observed rate, and its coefficient of variation is $1/\sqrt{D_x + 1/2}$: about 3\% with 1{,}000 deaths at that age and 1\% with 10{,}000. The prior matters only at ages with very few deaths.
+
+The rates are independent a posteriori, but the life-table deaths are not: through $\ell_x$, each $d_x$ depends on every rate below age $x$. Draws of $\bm{m}$ passed through \eqref{eq:lifetable} carry this dependence automatically.
+
+% ----------------------------------------------- %
+\subsection{From the posterior of the rates to the distribution of the mode}
+\label{sec:mode_dist}
+% ----------------------------------------------- %
+
+Because the posterior \eqref{eq:gamma_post} is a product of known gamma distributions, \eqref{eq:post_mode} can be evaluated by Monte Carlo integration with exact draws. For $s = 1, \dots, S$, draw $m_x^{(s)}$ from \eqref{eq:gamma_post} at every age, compute $\bm{d}^{(s)}$ from \eqref{eq:lifetable}, and record $M^{(s)} = M(\bm{m}^{(s)})$. Then
+\begin{equation}
+\widehat{\mathbb{P}}(M = x \mid \bm{D}) = \frac{1}{S} \sum_{s=1}^{S} \mathbb{I}\{M^{(s)} = x\}.
+\label{eq:mc}
+\end{equation}
+The data are held fixed and only the rates vary, so the simulation is a numerical device for computing an integral, not a resampling of the data. Its standard error is at most $1/(2\sqrt{S})$, or $0.005$ with $S = 10^4$ draws. \citet{andreev2015confidence} use a similar construction, posterior draws of the death rates passed through the life table, to obtain uncertainty limits for life expectancy.
+
+The output is a probability for each age. It can be summarized by the most probable age and its probability, or by a credible set: the smallest set of ages whose probabilities add up to at least $0.95$. For point estimates and intervals on a continuous age scale, we take in each draw the vertex of the parabola through the life-table deaths at $x-1$, $x$ and $x+1$, where $x = M^{(s)}$,
+\begin{equation}
+\tilde{M}^{(s)} = x + \frac{d_x^{(s)} - d_{x-1}^{(s)}}{\big(d_x^{(s)} - d_{x-1}^{(s)}\big) + \big(d_x^{(s)} - d_{x+1}^{(s)}\big)},
+\label{eq:interp}
+\end{equation}
+which is the interpolation of \citet{kannisto2001mode} applied to each draw. The posterior mean, median and mode of $\tilde{M}$ are point estimates of the modal age, and its 2.5\% and 97.5\% quantiles give a 95\% credible interval.
+
+% ----------------------------------------------- %
+\subsection{Local modes}
+\label{sec:analytic}
+% ----------------------------------------------- %
+
+The structure of the life table also gives an exact result for \emph{local} modes. Age $x$ is a local mode if $d_{x-1} < d_x > d_{x+1}$. The factors common to the three ages cancel in \eqref{eq:lifetable}, each comparison involves only two neighboring rates, and under \eqref{eq:gamma_post} these rates are independent. The posterior probability that $x$ is a local mode therefore reduces to a one-dimensional integral (Proposition~\ref{prop:local} in Appendix~\ref{app:analytic}). For small rates, age $x$ is a local mode when
+\begin{equation*}
+m_x - m_{x-1} \gtrsim m_x^2 \gtrsim m_{x+1} - m_x ,
+\end{equation*}
+the discrete form of the condition $\mu'(M) = \mu(M)^2$ that defines the mode of a continuous lifespan density \citep{canudas2008modal} and that underlies one of the DDT conditions. Summing the local-mode probabilities over ages gives the posterior expected number of local modes, a measure of how rough the single-year schedule is. The global mode has no comparable reduction, because $d_x$ depends on all rates below $x$; this is why we evaluate \eqref{eq:post_mode} by Monte Carlo.
+
+% ----------------------------------------------- %
+\subsection{Concentration in large populations}
+\label{sec:convergence}
+% ----------------------------------------------- %
+
+With unlimited data, the method should identify the modal age with certainty.
+
+\begin{proposition}
+\label{prop:convergence}
+Let $\bm{m}^0$ be the true rates, and suppose that $\bm{d}(\bm{m}^0)$ has a unique maximizer $x^\star$, with gap $\delta = d_{x^\star}(\bm{m}^0) - \max_{j \neq x^\star} d_j(\bm{m}^0) > 0$. Let the data follow \eqref{eq:poisson} with $\bm{m} = \bm{m}^0$ and exposures $E_x = c_x N$, $c_x > 0$. Then, as $N \to \infty$,
+\[
+\mathbb{P}(M = x^\star \mid \bm{D}) \xrightarrow{\;p\;} 1 .
+\]
+\end{proposition}
+
+The proof is in Appendix~\ref{app:proof}. The speed of concentration depends on the gap $\delta$ relative to the posterior standard deviation of $d_{x^\star} - d_j$, which decreases roughly with the inverse square root of the number of deaths. Because the distribution of deaths is flat near its peak, $\delta$ is often small, and the posterior can remain spread over two or three ages even in large populations. This spread is information that a point estimate does not convey: the data do not distinguish between these ages.
+
+% ----------------------------------------------- %
+\subsection{A posterior is not a bootstrap distribution}
+\label{sec:why_posterior}
+% ----------------------------------------------- %
+
+The parametric bootstrap draws replicate counts $D_x^\ast \sim \text{Poisson}(\hat m_x E_x)$ from the estimated rates, recomputes the mode for each replicate, and reports how often each age is returned (Appendix~\ref{app:bootstrap}). The two computations look alike, but the roles of data and rates are reversed. The bootstrap holds the rates at their estimates and varies the data; it describes how often an estimator would return age $x$ in new data from a population whose rates equal the estimates. The posterior holds the data at what was observed and varies the rates; it gives the probability that $x$ is the modal age of the population that produced these data. For smooth quantities such as life expectancy, and with many deaths, the two give nearly the same numbers \citep{van2000asymptotic}. The mode is not smooth: it jumps between ages when two values of $d_x$ cross, and for such functions the standard bootstrap need not be consistent \citep{andrews2000inconsistency, fang2019inference}. The posterior probability \eqref{eq:post_mode} does not rely on this kind of asymptotic argument.
+
+Both kinds of interval can nevertheless be judged in the same way when the true mode is known: by how often they contain it and by how wide they are. Section~\ref{sec:simulation} uses this criterion to compare the credible intervals of the posterior with bootstrap intervals for the other estimators.
+
+% ----------------------------------------------- %
+\subsection{Borrowing strength across ages: a random-walk prior}
+\label{sec:rw2}
+% ----------------------------------------------- %
+
+Under independent priors, each rate is informed only by the deaths at its own age, and the posterior describes the mode of the \emph{observed} single-year schedule, random fluctuation included. Near the peak this fluctuation can create several local maxima, and the posterior then spreads over ages that differ only by noise. Demographers do not usually treat the rates at neighboring ages as unrelated: at adult ages the logarithm of the death rate increases almost linearly with age \citep{gompertz1825nature, missov2015gompertz}, and graduation and smoothing methods exploit this regularity. A prior that encodes it lets each rate borrow strength from its neighbors.
+
+Let $\eta_x = \log m_x$. We replace the independent gamma priors with a second-order random walk (RW2) on the log rates,
+\begin{equation}
+\eta_x - 2\eta_{x-1} + \eta_{x-2} \sim \mathcal{N}(0, \lambda^{-1}), \qquad x = x_0 + 2, \dots, \omega - 1,
+\label{eq:rw2}
+\end{equation}
+independently across ages, and keep the Poisson likelihood \eqref{eq:poisson}. The joint prior density is $p(\bm{\eta} \mid \lambda) \propto \lambda^{(K-2)/2} \exp(-\tfrac{\lambda}{2}\, \bm{\eta}^\top \bm{P} \bm{\eta})$, where $\bm{P} = \bm{\Delta}^\top \bm{\Delta}$ and $\bm{\Delta}$ is the $(K-2) \times K$ matrix of second differences \citep{rue2005gaussian}. The prior says that the rate of increase of mortality changes little from one age to the next. It does not impose a level or a slope: every Gompertz schedule, $\eta_x = \log a + bx$, has zero penalty. The precision $\lambda$ sets how strongly the log rates are pulled toward a straight line. As $\lambda \to 0$ each rate is again informed by its own age alone, and as $\lambda \to \infty$ the posterior collapses onto a Gompertz fit. The prior therefore spans the range between the two existing approaches, the raw schedule and a parametric model, and the data decide where in that range the estimate lies.
+
+For fixed $\lambda$, the posterior mode of $\bm{\eta}$ maximizes
+\begin{equation}
+\ell(\bm{\eta}) - \frac{\lambda}{2} \sum_{x = x_0 + 2}^{\omega - 1} \left(\eta_x - 2\eta_{x-1} + \eta_{x-2}\right)^2,
+\qquad
+\ell(\bm{\eta}) = \sum_{x} \left( D_x \eta_x - E_x e^{\eta_x} \right),
+\label{eq:penalized}
+\end{equation}
+which is the graduation criterion of \citet{whittaker1923new} written for Poisson counts. The same second-order penalty underlies P-splines \citep{eilers1996flexible, camarda2012mortalitysmooth}, so the central estimate of the RW2 posterior is a smoothed schedule of the kind demographers already use \citep{lang2004bayesian}. The difference lies in what is done with it. Smoothing first and then reading the mode off one fitted schedule ignores the uncertainty of that schedule. Under the RW2 prior, each posterior draw is a different smooth schedule consistent with the data, and the mode is computed for each draw. The smoothing strength $\lambda$ is estimated from the data and its uncertainty is carried into the draws as well. The distribution of the mode thus reflects both the noise in the death counts and the uncertainty about how smooth the underlying schedule is.
+
+The prior therefore changes the target: the posterior now describes the mode of the underlying schedule around which the observed rates fluctuate, assuming that this schedule is smooth in the sense of \eqref{eq:rw2}. For most demographic questions the second is the quantity of interest. The assumption has a cost where the true schedule bends sharply, for example where the age-at-death distributions of two subpopulations overlap; Section~\ref{sec:simulation} examines this case.
+
+\paragraph{Computation.} The RW2 posterior has no closed form. We approximate it in two layers, following the integrated nested Laplace approach of \citet{rue2009approximate}. For fixed $\lambda$, the posterior mode $\hat{\bm{\eta}}_\lambda$ is found by penalized Fisher scoring, and the posterior of $\bm{\eta}$ is approximated by $\mathcal{N}(\hat{\bm{\eta}}_\lambda, \bm{H}_\lambda^{-1})$, where $\bm{H}_\lambda$ is the negative Hessian of the log posterior at the mode \citep{tierney1986accurate}. For $\lambda$, we place a flat prior on $\log_{10} \lambda$ over an equally spaced grid and weight each grid value by the Laplace approximation of its marginal likelihood. Each posterior draw takes a value of $\lambda$ from these weights, then $\bm{\eta}$ from the corresponding Gaussian, and passes $\bm{m} = \exp(\bm{\eta})$ through the life table. Algorithm~\ref{alg:estimation} summarizes both versions of the method, which differ only in how the rates are drawn. Appendix~\ref{app:computation} gives the details and shows that, in national data, the approximation agrees with exact sampling to within $0.01$ years for the posterior mean and $0.03$ years for the interval limits.
+
+\begin{algorithm}[htb!]
+\caption{Posterior distribution of the modal age at death}
+\label{alg:estimation}
+\small{
+  \SetAlgoLined
+  \KwIn{Deaths $D_x$ and exposures $E_x$ for $x_0 \le x < \omega$; number of draws $S$; for RW2, a grid $\lambda_1, \dots, \lambda_J$}
+  \KwOut{$\widehat{\mathbb{P}}(M = x \mid \bm{D})$ for each age $x$; draws $\tilde{M}^{(1)}, \dots, \tilde{M}^{(S)}$}
+  \If{RW2 prior}{
+    \For{$j = 1, \dots, J$}{
+      Find $\hat{\bm{\eta}}_{\lambda_j}$ and $\bm{H}_{\lambda_j}$ by iterating \eqref{eq:scoring}; compute the weight $w_j \propto p(\bm{D} \mid \lambda_j)$ from \eqref{eq:marglik} \;
+    }
+  }
+  \For{$s = 1, \dots, S$}{
+    \eIf{independent gamma priors}{
+      Draw $m_x^{(s)} \sim \text{Gamma}(\alpha + D_x, \, \beta + E_x)$ for every age \;
+    }{
+      Draw $j$ with probabilities $w_1, \dots, w_J$, draw $\bm{\eta}^{(s)} \sim \mathcal{N}(\hat{\bm{\eta}}_{\lambda_j}, \bm{H}_{\lambda_j}^{-1})$ and set $\bm{m}^{(s)} = \exp(\bm{\eta}^{(s)})$ \;
+    }
+    Compute $\bm{d}^{(s)}$ from \eqref{eq:lifetable}, $M^{(s)} = \operatorname{arg\,max}_x d_x^{(s)}$ and $\tilde{M}^{(s)}$ from \eqref{eq:interp} \;
+  }
+  $\widehat{\mathbb{P}}(M = x \mid \bm{D}) \leftarrow S^{-1} \sum_{s} \mathbb{I}\{M^{(s)} = x\}$ for each age $x$ \;
+}
+\end{algorithm}
+
+Because the RW2 prior links neighboring ages, the fitted schedule depends on the age range used: the rates near $x_0$ influence the fit at older ages. Under independent priors, $x_0$ affects the posterior of $M$ only through the ages it excludes. Section~\ref{sec:application} examines how much this matters in practice. The exact local-mode result of Section~\ref{sec:analytic} also does not carry over, because the rates are dependent a posteriori; the Monte Carlo estimate \eqref{eq:mc} does.
+
+% ----------------------------------------------- %
+\section{Simulation Study}
+\label{sec:simulation}
+% ----------------------------------------------- %
+
+\paragraph{Design.} Ages at death follow a mixture of two Gompertz distributions with the same slope $b = 0.14$,
+\begin{equation}
+f(x) = w\, g_1(x) + (1 - w)\, g_2(x), \qquad
+g_k(x) = a_k e^{b x} \exp\!\Big(-\frac{a_k}{b}\big(e^{b x} - 1\big)\Big), \quad a_k = b\, e^{-b M_k},
+\label{eq:sim_mixture}
+\end{equation}
+where $g_1$ and $g_2$ have modal ages $M_1 = 90$ and $M_2 = 65$. The mixture describes a population made of two groups with different levels of mortality. We consider four scenarios, $w = 1$, $0.8$, $0.7$ and $0.6$, in which $0\%$, $20\%$, $30\%$ and $40\%$ of deaths occur in the earlier group. With $w < 1$ the density has a secondary peak between ages 66 and 68, whose height is $35\%$, $52\%$ and $75\%$ of the main peak. The true modal age is 90 in every scenario. For a radix $N$, exposures are the expected person-years $E_x = N \int_x^{x+1} S(t)\, dt$, with $S$ the survival function of \eqref{eq:sim_mixture}, and death counts are drawn as $D_x \sim \text{Poisson}(m_x E_x)$, with $m_x$ the true central death rate, for ages $0, \dots, 109$ and $110+$. We use $N = 10^3, 10^4, 10^5$ and $10^6$, from the annual deaths of one sex in a small region to those of a large country, and replicate each of the 16 combinations of scenario and population size 500 times. All methods use the starting age $x_0 = 40$.
+
+\paragraph{Methods compared.} We compute the posterior with independent gamma priors (``raw posterior'') and the posterior with the RW2 prior, each with $S = 5{,}000$ draws, and summarize each by the posterior mean, median and mode of $\tilde{M}$ and the 95\% credible interval. These are compared with three point estimators. For the Gompertz estimator, $\mu(x) = a e^{bx}$ is fitted by Poisson maximum likelihood to ages $x_0$ and above, and the mode is $\log(b/a)/b$ \citep{canudas2008modal, missov2015gompertz}. For the P-spline estimator, the death counts are smoothed with a Poisson P-spline, with the smoothing parameter chosen by the Bayesian information criterion as in \citet{camarda2012mortalitysmooth}, and the mode is the maximum of the fitted lifespan density \citep{ouellette2011changes}. DDT is the method of \citet{vazquez2024longevity}, to which we add half a year. The published method treats $d_x$ as the density of deaths at exact age $x$, whereas $d_x$ counts the deaths between ages $x$ and $x+1$ and is centered at $x + 1/2$; without the shift, DDT estimates are about half a year too low, and the other methods already place the deaths of $[x, x+1)$ at $x + 1/2$ (Appendix~\ref{app:implementation}). For the three point estimators, 95\% confidence intervals are obtained by the bootstrap: replicate counts $D^\ast_x \sim \text{Poisson}(D_x)$ with fixed exposures, 200 replicates, and the 2.5\% and 97.5\% quantiles of the re-estimated modes. Accuracy is measured by the bias and the mean absolute error with respect to the true mode, and intervals by their coverage and mean width.
+
+\begin{figure*}[htb!]
+    \centering
+    \includegraphics[width=\linewidth]{figures/mc_scenarios.pdf}
+    \caption{Simulation study with $N = 10^4$. Each row is a scenario. (A) True density of the age at death; the dashed line marks the true mode, the dotted line the secondary peak, and the shaded area the ages shown in B to D. (B) Posterior distribution of the modal age with independent gamma priors and (C) with the RW2 prior, averaged over 500 replications. (D) Point estimates across replications.}
+    \label{fig:mc_scenarios}
+\end{figure*}
+
+\begin{figure}[htb!]
+    \centering
+    \includegraphics[width=\linewidth]{figures/mc_mae.pdf}
+    \caption{Mean absolute error of the estimated modal age by population size and scenario (logarithmic scales), 500 replications.}
+    \label{fig:mc_mae}
+\end{figure}
+
+\paragraph{Choice of posterior summary.} For the RW2 posterior, the mean, median and mode of $\tilde{M}$ are about equally accurate in the unimodal scenario (mean absolute errors of $0.08$, $0.07$ and $0.07$ years at $N = 10^4$; Figure~\ref{fig:mc_mae}). With a secondary peak the posterior mean is the most accurate, with errors at $N = 10^4$ of $0.31$, $0.35$ and $0.39$ years in scenarios (b) to (d), against $0.33$ to $0.44$ for the median and $0.44$ to $0.61$ for the mode. The only exception is scenario (d) with $N = 10^3$, where part of the posterior mass lies near the secondary peak and pulls the mean down (bias $-0.35$); the median is then more accurate ($0.72$ against $0.82$). The raw posterior shows the same ordering. We therefore use the posterior mean as the point estimate.
+
+\paragraph{RW2 against independent priors.} Borrowing strength across ages concentrates the posterior of the mode (Figure~\ref{fig:mc_scenarios}, panels B and C). In the unimodal scenario, the mean absolute error of the RW2 posterior mean is $3.8$ to $10.6$ times smaller than that of the raw posterior mean, for example $0.08$ against $0.48$ years at $N = 10^4$. With a secondary peak the gain is a factor of $1.4$ to $1.8$, and much larger in scenario (d) with $N = 10^3$ ($0.82$ against $3.96$ years). The raw posterior is biased downward in small populations ($-0.48$ years in the unimodal scenario at $N = 10^3$), whereas the bias of the RW2 posterior mean stays within $0.10$ years of zero except in scenario (d) at $N = 10^3$.
+
+\paragraph{Comparison of point estimates.} When the distribution of deaths is unimodal, the RW2 posterior mean, the P-spline and the Gompertz estimators are equally accurate, with mean absolute errors of $0.22$, $0.21$ and $0.20$ years at $N = 10^3$ and $0.01$ at $N = 10^6$. The Gompertz model is the true model in this scenario. With a secondary peak it is misspecified, and its estimates are biased by $-3.1$, $-5.2$ and $-7.7$ years in scenarios (b) to (d), whatever the population size. After the half-year shift, DDT is nearly unbiased except at $N = 10^3$ ($-0.26$ years in the unimodal scenario and $-1.18$ in scenario (d)), but its estimates vary more from one data set to the next: in the unimodal scenario its mean absolute error is $1.54$, $0.80$, $0.33$ and $0.12$ years from $N = 10^3$ to $10^6$, seven to twelve times that of the RW2 posterior mean. With a secondary peak, the P-spline estimator is the most accurate: at $N = 10^4$ its mean absolute error is $0.20$, $0.21$ and $0.24$ years in scenarios (b) to (d), against $0.31$, $0.35$ and $0.39$ for the RW2 posterior mean. The difference is smaller at $N = 10^3$ ($0.42$ against $0.50$ in scenario (b)).
+
+\begin{figure}[htb!]
+    \centering
+    \includegraphics[width=\linewidth]{figures/mc_coverage.pdf}
+    \caption{Coverage (top) and mean width (bottom, logarithmic scale) of 95\% intervals for the modal age, by population size and scenario: credible intervals of the raw and RW2 posteriors (solid lines) and bootstrap confidence intervals of the Gompertz, P-spline and DDT estimators (dashed lines). The dotted line marks 95\%.}
+    \label{fig:mc_coverage}
+\end{figure}
+
+\paragraph{Intervals.} Both posteriors keep the coverage of their 95\% credible intervals at or above the nominal level: between $0.94$ and $1.00$ for the raw posterior and between $0.98$ and $1.00$ for RW2 (Figure~\ref{fig:mc_coverage}). The RW2 intervals are much narrower, $0.52$ against $3.91$ years in the unimodal scenario at $N = 10^4$. The bootstrap intervals of the other estimators behave differently. In the unimodal scenario, the Gompertz and P-spline intervals are narrower than the RW2 intervals ($0.29$ against $0.52$ years at $N = 10^4$) and contain the true mode in $89\%$ to $94\%$ of replications, slightly below the nominal level. With a secondary peak, the Gompertz intervals never contain it: they are narrow ($0.04$ to $2.0$ years) and centered on a biased estimate. The P-spline intervals then cover it in $78\%$ to $95\%$ of replications; part of the shortfall arises because the smoothing parameter is held fixed in the bootstrap, so its uncertainty is left out. The DDT intervals reach nominal coverage ($0.94$ to $0.99$) but are wide, $4.6$ to $7.8$ times wider than the RW2 intervals in the unimodal scenario ($3.50$ against $0.52$ years at $N = 10^4$). The RW2 credible interval is the only one that reaches the nominal level in every scenario and population size. With a secondary peak, the RW2 intervals ($2.6$ to $3.1$ years wide at $N = 10^4$) are wider than the errors require: their coverage is close to one while the mean absolute error is $0.31$ to $0.39$ years. One smoothing parameter has to fit both the bend between the two peaks and the main peak, which suggests that the marginal likelihood then favors weaker smoothing than the main peak alone would need.
+
+% ----------------------------------------------- %
+\section{Application}
+\label{sec:application}
+% ----------------------------------------------- %
+
+\paragraph{Data and design.} We use deaths and exposures by single year of age ($0, \dots, 109$ and $110+$) from the \citet{hmd} for women in Denmark, France, Japan and Sweden, from 1960 to the latest year available (2025 for Denmark and 2024 for the other countries), 261 population-years in total. For each population-year we estimate the modal age with the RW2 posterior and with the Gompertz, P-spline and DDT estimators, each with the starting ages $x_0 = 40$, $50$, $60$ and $70$. The modal age lies above all four, so the target is the same for every starting age (Section~\ref{sec:target}), and differences across starting ages measure how sensitive each estimator is to the age range it is given. DDT uses the rates at each age separately and does not depend on $x_0$; the other three fit a model across ages.
+
+\begin{figure*}[htb!]
+    \centering
+    \includegraphics[width=\linewidth]{figures/emp_trends.pdf}
+    \caption{Modal age at death of women by country and year, starting age 40. The band is the 95\% credible interval of the RW2 posterior.}
+    \label{fig:emp_trends}
+\end{figure*}
+
+\paragraph{Trends and agreement between methods.} Between 1960 and the latest year, the RW2 posterior mean rose by $8.8$ years in Denmark ($81.3$ to $90.0$), $9.4$ in Sweden ($81.5$ to $90.9$), $9.7$ in France ($82.3$ to $92.0$) and $13.2$ in Japan ($79.4$ to $92.5$) (Figure~\ref{fig:emp_trends}). The median width of the 95\% credible interval is $1.1$ years, ranging from $0.5$ to $3.3$ years; it is widest in Denmark (median $1.6$ years), the smallest population, and narrowest in France and Japan ($0.8$ years). The P-spline estimate lies within the RW2 credible interval in $99.6\%$ of population-years, with a mean absolute difference of $0.12$ years from the RW2 posterior mean. The Gompertz estimate lies within it in $71.6\%$ of population-years, on average $0.15$ years lower. The DDT estimate lies within it in $81.2\%$ of population-years, with a mean absolute difference of $0.39$ years, and its series is visibly rougher from year to year (Figure~\ref{fig:emp_start_age}), because DDT does not smooth the single-year rates.
+
+The credible intervals show whether a change from one year to the next exceeds the uncertainty of the estimates. Between 2019 and 2020, the RW2 posterior mean fell by $0.52$ years in France and $0.53$ years in Sweden and rose by $0.44$ years in Denmark and $0.20$ years in Japan, but in all four countries the 2019 and 2020 intervals overlap (for France, $91.55$--$92.48$ and $90.95$--$91.58$).
+
+\begin{figure*}[htb!]
+    \centering
+    \includegraphics[width=\linewidth]{figures/emp_start_age.pdf}
+    \caption{Modal age at death of women in Denmark by year, for each method (panels) and starting age (colors). Where the four lines coincide, the estimate does not depend on the starting age.}
+    \label{fig:emp_start_age}
+\end{figure*}
+
+\paragraph{Sensitivity to the starting age.} Figure~\ref{fig:emp_start_age} shows the estimates for Denmark, the smallest of the four populations, and Table~\ref{tab:start_age} summarizes all four (Figure~\ref{fig:app_start_all} in the Appendix shows each country). The RW2 posterior mean and the P-spline estimator hardly change with the starting age. Moving it from 40 to 70 changes the RW2 posterior mean by $0.03$ years on average and by at most $0.28$ years, against $0.04$ and $0.48$ years for the P-spline estimator and $0.42$ and $0.99$ years for the Gompertz model. The Gompertz estimates also shift systematically, by $+0.37$ years on average, because the fitted slope depends on the age range; in Figure~\ref{fig:emp_start_age} this appears as four separate lines. Of the three posterior summaries, the posterior mode is the most sensitive (at most $0.57$ years), in line with its lower accuracy in the simulation. For the RW2 posterior mean, the changes are more than an order of magnitude smaller than the median width of the credible interval.
+
+\input{tables/emp_start_age.tex}
+
+% ----------------------------------------------- %
+\section{Discussion}
+\label{sec:conclusion}
+% ----------------------------------------------- %
+
+We proposed to estimate the modal age at death as a probability distribution rather than a single number. The distribution follows from two standard ingredients: a Poisson model for death counts given the rates, and the life table, which turns each rate schedule consistent with the data into a modal age. The result gives the probability of each age, a point estimate and a credible interval from the same computation, without resampling the data.
+
+The two priors serve different purposes. With independent gamma priors the posterior is exact and needs no approximation; it describes the mode of the observed single-year schedule and is useful for showing how rough that schedule is near its peak. For estimating the modal age of the underlying schedule, the RW2 prior is the better choice. In the simulation study it reduced the mean absolute error of the posterior mean by a factor of $1.4$ to $10.6$ relative to independent priors and removed the downward bias of the raw posterior in small populations. Among the posterior summaries, the posterior mean was the most accurate in almost all settings, and we recommend it as the point estimate.
+
+Against existing estimators, the RW2 posterior mean was as accurate as the P-spline and Gompertz estimators when the distribution of deaths was unimodal, which is the usual situation in national populations: in the application, the median posterior probability that the RW2 schedule had more than one major local mode was $0.002$. Unlike the Gompertz model, it does not depend on a functional form: with a secondary peak the Gompertz estimates were biased by 3 to 8 years, while the bias of the RW2 posterior mean stayed within $0.10$ years of zero except in the smallest populations. It is also less affected by single-year noise than the raw posterior and DDT. In data for women in four countries, it agreed closely with the P-spline estimates and was as insensitive as they were to the starting age, while the Gompertz estimates changed by $0.42$ years on average. Its credible intervals were the only intervals in the simulation that reached nominal coverage in every scenario and population size: the bootstrap intervals of the P-spline estimator were narrower but covered the true mode in as few as $78\%$ of replications, those of the Gompertz model never covered it when the distribution had a secondary peak, and those of DDT were four to eight times wider when it was unimodal.
+
+The method is therefore most useful when the uncertainty of the modal age matters: comparing populations or years, judging whether a change from one year to the next exceeds the noise, or working with small populations, where several ages can be almost equally supported by the data. In large populations with a unimodal distribution of deaths, its point estimate is close to that of a P-spline, and its contribution is the distribution and the interval that come with it.
+
+The main limitation is the single smoothing parameter. When the distribution of deaths has a secondary peak, that parameter has to fit both the bend between the peaks and the main peak. The RW2 posterior mean was then less accurate than the P-spline estimator ($0.31$ to $0.39$ against $0.20$ to $0.24$ years at $N = 10^4$), and its credible intervals were wider than needed. A smoothing precision that varies with age in \eqref{eq:rw2} would address this within the same computation. The same posterior draws also give the distribution of any other quantity derived from the life table, such as life expectancy or lifespan variation, so the approach is not limited to the mode.
+
+% ----------------------------------------------- %
+\section*{Acknowledgments}
+% ----------------------------------------------- %
+
+\paragraph*{Funding:}
+We gratefully acknowledge the financial support from the AXA Research Fund through the funding for the “\textit{AXA Chair in Longevity Research}”. This article is funded by the European Union (ERC, Born Once – Die Once, Grant agreement ID 101043983). Views and opinions expressed are however those of the author only and do not necessarily reflect those of the European Union or the European Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them.
+
+\paragraph*{Author Contributions (CRediT):}
+S.C.P.: Conceptualization, Methodology, Software, Formal analysis, Investigation, Writing -- original draft, Writing -- review and editing. P.V.C.: Conceptualization, Validation, Visualization, Software, Writing -- review and editing.
+
+\paragraph*{Competing interests:} The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+
+\paragraph*{Data and materials availability:} The code, simulation settings, and materials required to reproduce the analyses, tables, and figures are openly available at \url{https://github.com/scpatricio/modal_age_posterior}.
+
+
+
+%  ------------------------------------------------------------
+%  References
+%  ------------------------------------------------------------
+{\footnotesize
+\bibliographystyle{apalike}
+\bibliography{references}
+}
+%  ------------------------------------------------------------
+%  Appendices
+%  ------------------------------------------------------------
+
+\clearpage
+
+%%%%%%%%%%%%%%%% START OF SUPPLEMENT %%%%%%%%%%%%%%%
+
+% Figures, tables, equations and pages in the supplement are numbered S1, S2 etc.
+
+\renewcommand{\thefigure}{S\arabic{figure}}
+\renewcommand{\thetable}{S\arabic{table}}
+\renewcommand{\theequation}{S\arabic{equation}}
+\renewcommand{\thepage}{S\arabic{page}}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+\setcounter{equation}{0}
+\setcounter{page}{1} % not 0 as \newpage already started a supplementary page
+
+\appendix
+\section*{Appendix}
+% ------------------------------------------------------------------------------------------------------------------------------------------------- %
+
+\section{Local modes and a Gaussian approximation}
+\label{app:analytic}
+
+Age $x$ is a local mode if $d_{x-1} < d_x > d_{x+1}$. Equation~\eqref{eq:lifetable} gives $d_{x-1} = \ell_{x-1}(1 - e^{-m_{x-1}})$, $d_x = \ell_{x-1} e^{-m_{x-1}}(1 - e^{-m_x})$ and $d_{x+1} = \ell_{x-1} e^{-m_{x-1}} e^{-m_x} (1 - e^{-m_{x+1}})$. The common factors cancel, and each comparison involves only two neighboring rates:
+\begin{align}
+d_x > d_{x-1} &\iff m_{x-1} < u(m_x), \label{eq:left}\\
+d_x > d_{x+1} &\iff m_{x+1} < v(m_x), \label{eq:right}
+\end{align}
+where $u(m) = \log(2 - e^{-m})$, and $v(m) = -\log(2 - e^{m})$ for $m < \log 2$ and $v(m) = +\infty$ otherwise. Under \eqref{eq:gamma_post}, $m_{x-1}$, $m_x$ and $m_{x+1}$ are independent. Conditioning on $m_x$ therefore makes the two events independent, and integrating over $m_x$ gives the following result.
+
+\begin{proposition}
+\label{prop:local}
+Let $g_x$ and $G_x$ denote the posterior density and distribution function of $m_x$ in \eqref{eq:gamma_post}, with $G_x(+\infty) = 1$. Then
+\begin{equation}
+\mathbb{P}(d_{x-1} < d_x > d_{x+1} \mid \bm{D}) 
+ = \int_0^\infty g_x(m)\, G_{x-1}\big(u(m)\big)\, G_{x+1}\big(v(m)\big)\, dm .
+\label{eq:local}
+\end{equation}
+\end{proposition}
+
+The integral in \eqref{eq:local} is one-dimensional and can be evaluated to high accuracy with standard quadrature. For small rates, $u(m) \approx m - m^2$ and $v(m) \approx m + m^2$, which gives the condition for a local mode stated in Section~\ref{sec:analytic}.
+
+\paragraph{Gaussian approximation.} When many deaths are observed at each age, the posterior of $\bm{m}$ is approximately Gaussian with mean $\hat{\bm{m}}$, the vector of posterior means $(\alpha + D_x)/(\beta + E_x)$, and diagonal covariance $\bm{V}$ with entries $(\alpha + D_x)/(\beta + E_x)^2$. By the delta method, $\bm{d} \approx \mathcal{N}(\hat{\bm{d}}, \bm{\Sigma}_d)$ with $\hat{\bm{d}} = \bm{d}(\hat{\bm{m}})$ and $\bm{\Sigma}_d = \bm{J} \bm{V} \bm{J}^\top$. The Jacobian $\bm{J}$ is lower triangular:
+\begin{equation}
+\frac{\partial d_x}{\partial m_y} =
+\begin{cases}
+-d_x, & y < x,\\
+\ell_{x+1}, & y = x,\\
+0, & y > x,
+\end{cases}
+\label{eq:jacobian}
+\end{equation}
+evaluated at $\hat{\bm{m}}$. A higher rate at an earlier age lowers $d_x$ by lowering survival to $x$; a higher rate at age $x$ raises $d_x$; rates at later ages do not affect it.
+
+Age $x$ is the mode when all differences $d_x - d_j$, $j \neq x$, are positive. Let $\bm{\Lambda}_x$ be the $(K-1) \times K$ matrix whose rows are $\bm{e}_x - \bm{e}_j$ for $j \neq x$, where $\bm{e}_k$ is the $k$-th unit vector. Then $\bm{Y}_x = \bm{\Lambda}_x \bm{d} \approx \mathcal{N}(\bm{\Lambda}_x \hat{\bm{d}}, \, \bm{\Lambda}_x \bm{\Sigma}_d \bm{\Lambda}_x^\top)$, and
+\begin{equation}
+\mathbb{P}(M = x \mid \bm{D}) \approx \int_{R_x} f_{\bm{Y}_x}(\bm{y}) \, d\bm{y},
+\label{eq:gauss}
+\end{equation}
+where $f_{\bm{Y}_x}$ is the Gaussian density of $\bm{Y}_x$ and $R_x = [0, \infty)^{K-1}$ is the positive orthant. Orthant probabilities of this kind can be computed with the algorithms of \citet{genz2009computation}, implemented in the \texttt{mvtnorm} package \citep{mi2009mvtnorm}. Those algorithms are themselves randomized quasi-Monte Carlo methods, so \eqref{eq:gauss} does not remove simulation; its value is interpretive. It shows that ages compete for the mode through the standardized gaps $(\hat d_x - \hat d_j)/\text{sd}(d_x - d_j)$: two ages are both plausible modes when their life-table deaths differ by little relative to the posterior uncertainty of that difference. The approximation requires many deaths at the ages near the mode. When counts are small, \eqref{eq:mc} should be used.
+
+\section{Proof of Proposition~\ref{prop:convergence}}
+\label{app:proof}
+
+\begin{proof}
+Write $\bar m_x = (\alpha + D_x)/(\beta + c_x N)$ and $s_x^2 = (\alpha + D_x)/(\beta + c_x N)^2$ for the posterior mean and variance of $m_x$. Since $D_x / (c_x N) \to m_x^0$ in probability, $\bar m_x \to m_x^0$ and $s_x^2 \to 0$ in probability. Fix $\eta > 0$. On the event $|\bar m_x - m_x^0| < \eta/2$, Chebyshev's inequality gives $\mathbb{P}(|m_x - m_x^0| > \eta \mid \bm{D}) \le 4 s_x^2 / \eta^2$, and the probability of that event tends to one. A union bound over the $K$ ages then gives $\mathbb{P}(\max_x |m_x - m_x^0| > \eta \mid \bm{D}) \to 0$ in probability.
+
+The map $\bm{m} \mapsto \bm{d}(\bm{m})$ in \eqref{eq:lifetable} is continuous, so we can choose $\eta$ such that $\max_x |m_x - m_x^0| \le \eta$ implies $|d_x(\bm{m}) - d_x(\bm{m}^0)| < \delta/2$ for all $x$. For such $\bm{m}$, $d_{x^\star}(\bm{m}) > d_{x^\star}(\bm{m}^0) - \delta/2 \ge d_j(\bm{m}^0) + \delta/2 > d_j(\bm{m})$ for every $j \neq x^\star$, so $M(\bm{m}) = x^\star$. Hence $\mathbb{P}(M = x^\star \mid \bm{D}) \ge 1 - \mathbb{P}(\max_x |m_x - m_x^0| > \eta \mid \bm{D}) \to 1$.
+\end{proof}
+
+\section{The bootstrap distribution of the mode}
+\label{app:bootstrap}
+
+The parametric bootstrap of Section~\ref{sec:why_posterior} reports the frequencies
+\begin{equation}
+\mathbb{P}^\ast(\hat M^\ast = x) = \sum_{\bm{D}^\ast} \mathbb{I}\{M(\bm{D}^\ast/\bm{E}) = x\}\, p(\bm{D}^\ast \mid \hat{\bm{m}}).
+\label{eq:boot}
+\end{equation}
+where $p(\bm{D}^\ast \mid \hat{\bm{m}})$ is the Poisson distribution of the replicate counts given the estimated rates. Equations \eqref{eq:post_mode} and \eqref{eq:boot} have a similar form, with the roles of data and rates reversed.
+
+Both quantities are usually computed by simulation, and both are, in principle, exact sums or integrals. The difference lies in what is averaged over, not in how the average is computed. Equation~\eqref{eq:boot} averages over data sets that were never observed, holding the rates at estimates that differ from the true rates by sampling error. Equation~\eqref{eq:post_mode} averages over rates, holding the data at what was observed. In \eqref{eq:mc} the simulation is only a numerical device, and it can be replaced by other methods, as Proposition~\ref{prop:local} does for local modes.
+
+Sparse data make the difference concrete. If no deaths are observed at some age, then $\hat m_x = 0$ and every bootstrap replicate also has zero deaths at that age, so the bootstrap treats the rate as known to be zero. The posterior \eqref{eq:gamma_post} keeps a proper distribution, $\text{Gamma}(1/2, E_x)$, which assigns positive probability to positive rates. This matters in small populations and at the highest ages.
+
+\section{Computation of the RW2 posterior}
+\label{app:computation}
+
+For fixed $\lambda$, the posterior mode $\hat{\bm{\eta}}_\lambda$ of Section~\ref{sec:rw2} is found by penalized Fisher scoring, iterating
+\begin{equation}
+(\bm{W} + \lambda \bm{P})\, \bm{\eta}^{\text{new}} = \bm{W} \bm{\eta} + \bm{D} - \bm{\mu},
+\qquad \mu_x = E_x e^{\eta_x}, \quad \bm{W} = \operatorname{diag}(\bm{\mu}),
+\label{eq:scoring}
+\end{equation}
+until the largest change in $\bm{\eta}$ is below $10^{-7}$. At the mode, $\bm{H}_\lambda = \bm{W}(\hat{\bm{\eta}}_\lambda) + \lambda \bm{P}$. The matrix $\bm{H}_\lambda$ is banded with bandwidth two, so each iteration, the Cholesky factor of $\bm{H}_\lambda$ and each draw from $\mathcal{N}(\hat{\bm{\eta}}_\lambda, \bm{H}_\lambda^{-1})$ cost $O(K)$ operations. Each grid value of $\lambda$ is weighted by the Laplace approximation of its marginal likelihood,
+\begin{equation}
+\log p(\bm{D} \mid \lambda) \approx \ell(\hat{\bm{\eta}}_\lambda) - \frac{\lambda}{2}\, \hat{\bm{\eta}}_\lambda^\top \bm{P} \hat{\bm{\eta}}_\lambda + \frac{K-2}{2} \log \lambda - \frac{1}{2} \log \lvert \bm{H}_\lambda \rvert + \text{const}.
+\label{eq:marglik}
+\end{equation}
+
+\paragraph{Comparison with exact sampling.} To check the approximation, we sampled the exact posterior of the same model (Poisson likelihood, RW2 prior, flat prior on the grid of $\log_{10}\lambda$) for women in Denmark, France, Japan and Sweden in 1960 and 2019, with starting age 50. We used an independence Metropolis--Hastings sampler whose proposal is the Laplace approximation itself: a grid value $\lambda_j$ is drawn with probability $w_j$, and $\bm{\eta}$ is drawn from $\mathcal{N}(\hat{\bm{\eta}}_{\lambda_j}, \bm{H}_{\lambda_j}^{-1})$. The accept--reject step corrects any error of the approximation, so the chain targets the exact posterior, and its acceptance rate measures how close the approximation is: it would be one if the approximation were exact. Grid values whose weight is below $e^{-12}$ are not proposed. Each chain has $10^5$ iterations.
+
+The acceptance rates are between 0.93 and 0.99 (Table~\ref{tab:app_mcmc}), and the effective sample size of $\tilde{M}$ is at least 84{,}600 of the $10^5$ draws. Across the eight populations, the posterior means of $\tilde{M}$ from the two computations differ by at most 0.006 years and the limits of the 95\% credible intervals by at most 0.03 years. The most probable age is the same in all eight cases, and its posterior probability differs by at most 0.005 (Figure~\ref{fig:app_mcmc}). The posterior means of $\log_{10}\lambda$ differ by at most 0.002. In these populations, which range from Denmark to Japan in size, the approximation error is one to two orders of magnitude smaller than the width of the credible intervals.
+
+\input{tables/app_laplace_mcmc.tex}
+
+\begin{figure*}[htb!]
+    \centering
+    \includegraphics[width=\linewidth]{figures/app_laplace_mcmc.pdf}
+    \caption{Posterior distribution of the modal age at death under the RW2 prior, computed with the Laplace approximation and with exact sampling (independence Metropolis--Hastings), women, starting age 50.}
+    \label{fig:app_mcmc}
+\end{figure*}
+
+\section{Full simulation results}
+\label{app:mc}
+
+Tables~\ref{tab:app_mae} to \ref{tab:app_coverage} report the mean absolute error, bias and standard deviation of every estimator, and the coverage and width of the credible and bootstrap intervals, for all scenarios and population sizes of Section~\ref{sec:simulation}. Figure~\ref{fig:mc_bias} shows the bias by population size.
+
+\begin{figure}[htb!]
+    \centering
+    \includegraphics[width=\linewidth]{figures/mc_bias.pdf}
+    \caption{Bias of the estimated modal age by population size and scenario, starting age 40, 500 replications. Gompertz is not shown (its bias is 3 to 8 years with a secondary peak).}
+    \label{fig:mc_bias}
+\end{figure}
+
+\input{tables/app_mc_mae.tex}
+
+\input{tables/app_mc_bias.tex}
+
+\input{tables/app_mc_sd.tex}
+
+\input{tables/app_mc_coverage.tex}
+
+\section{Sensitivity to the starting age by country}
+\label{app:start_age}
+
+Figure~\ref{fig:app_start_all} extends Figure~\ref{fig:emp_start_age} to all four countries. It shows the estimates of each method by year at starting ages 40, 50, 60 and 70 and complements the summaries in Table~\ref{tab:start_age}.
+
+\begin{figure*}[htb!]
+    \centering
+    \includegraphics[width=\linewidth]{figures/emp_start_age_all.pdf}
+    \caption{Modal age at death of women by year, method (rows) and country (columns), at starting ages 40, 50, 60 and 70.}
+    \label{fig:app_start_all}
+\end{figure*}
+
+\section{Implementation details}
+\label{app:implementation}
+
+All computations are done in R. The code is available at the address given in the Data and materials availability statement.
+
+\paragraph{Life table.} All methods use the constant-force life table \eqref{eq:lifetable} on single years of age. The open interval $110+$ has $q_x = 1$ and is never eligible as the mode. If the exposure is zero at some age above $x_0$, the schedule is truncated before that age, and the previous age becomes the open interval.
+
+\paragraph{Posteriors.} The raw posterior uses $\alpha = 1/2$ and $\beta = 0$. Both posteriors use $S = 5{,}000$ draws in the simulation study and $S = 10^4$ in the application. For the RW2 posterior, the grid of $\log_{10} \lambda$ runs from $-1$ to $8$ in steps of $0.25$; the search along the grid stops once the log marginal likelihood \eqref{eq:marglik} falls 12 units below its largest value, where the weights are below $e^{-12}$. The $S$ draws are allocated to the grid values by multinomial sampling with the normalized weights. When the most probable age is the first or the last closed age, $\tilde{M}^{(s)} = x + 1/2$. The posterior mode of $\tilde{M}$ is the maximum of a Gaussian kernel density estimate of the draws with the default bandwidth of the R function \texttt{density}. The banded computations of Appendix~\ref{app:computation} are coded in C++ through Rcpp.
+
+\paragraph{Gompertz.} The model $\log m_x = \log a + b(x + 1/2)$ is fitted by Poisson maximum likelihood, with offset $\log E_x$, to the ages from $x_0$ to $\omega - 1$. The mode is $\log(b/a)/b$.
+
+\paragraph{P-spline.} The R package MortalitySmooth \citep{camarda2012mortalitysmooth} is no longer distributed through CRAN, so we coded the same model. The log rate at $x + 1/2$ is a combination of cubic B-splines on equally spaced knots, with $\lfloor (\omega - x_0)/5 \rfloor$ intervals (at least four), and a second-order difference penalty on the coefficients. The model is fitted to the counts by penalized iteratively reweighted least squares with offset $\log E_x$, and the smoothing parameter minimizes the Bayesian information criterion over $\log_{10} \lambda \in \{-2, -1.5, \dots, 7\}$. The mode is the maximum of the fitted density $f(t) = \mu(t) \exp\{-\int_{x_0}^{t} \mu(u)\, du\}$ on a grid of $0.01$ years, refined by the vertex of the parabola through the three grid points around the maximum.
+
+\paragraph{DDT.} We compute the four conditions of \citet[Equation 9]{vazquez2024longevity} from the observed rates and the corresponding life-table deaths, and locate each change of sign from positive to negative by linear interpolation between integer ages. Every zero of the first-difference condition at which the second-difference condition is negative is a candidate local maximum. The zeros of the two rate conditions closest to the candidate, within two years, are averaged with it; a condition with no zero within two years is left out. Among the candidates, the estimate is the one with the largest life-table deaths. The original description does not specify how zeros are matched when the conditions cross zero more than once, so this matching rule is our choice. Finally, we add $1/2$ to the estimate. The published conditions treat $d_x$ as the density of deaths at exact age $x$, but $d_x$ counts the deaths in $[x, x+1)$, whose center is $x + 1/2$; the Gompertz and P-spline fits evaluate the hazard at $x + 1/2$, and the interpolation \eqref{eq:interp} locates the mode within $[x, x+1)$. Without the shift, DDT estimates were on average about half a year below the true mode in the simulation study and below the other estimates in the application.
+
+\paragraph{Bootstrap intervals.} For the Gompertz, P-spline and DDT estimators, each simulated data set is resampled 200 times as $D_x^\ast \sim \text{Poisson}(D_x)$ with the exposures held fixed, the mode is re-estimated in each replicate, and the 2.5\% and 97.5\% quantiles of the replicates form the 95\% interval. For the P-spline, the smoothing parameter is fixed at the value selected on the original data, which keeps the computation feasible.
+
+
+% ------------------------------------------------------------------------------------------------------------------------------------------------- %
+
+\end{document}

@@ -1,0 +1,377 @@
+\documentclass[12pt, letterpaper]{article}
+% \documentclass[11pt,twocolumn]{article}
+
+\usepackage[margin=1in]{geometry}
+
+\usepackage[authordate, backend=biber, natbib=true]{biblatex-chicago}
+\addbibresource{references.bib}
+\renewcommand*{\bibfont}{\footnotesize}
+
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{layout}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{amsthm, bm}
+\usepackage{color}
+\usepackage{authblk}
+\usepackage{lineno}
+% \usepackage[authoryear]{natbib}
+\usepackage{caption}
+\usepackage{capt-of}
+\usepackage[ruled, lined, linesnumbered]{algorithm2e}
+\usepackage{url}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{authblk}
+\usepackage{lmodern}
+
+\usepackage{hyperref}
+
+\usepackage{stfloats} % Allows more flexible float placement in twocolumn
+
+\newcommand{\vect}[1]{\bm{\bm{#1}}}
+
+\usepackage{listings}
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    backgroundcolor=\color{white} % Sets the background color to white
+}
+
+\newtheorem{proposition}{Proposition}
+
+\Huge\title{A Probabilistic Framework for Estimating the Modal Age at Death}
+% \author{Silvio C. Patricio \\
+%     \small\textit{University of Southern Denmark} \\
+%     \footnotesize\texttt{silviocabralpatricio@msn.com}}
+\author{%
+  \begin{minipage}[t]{0.4\textwidth}
+    \centering
+    Silvio C. Patricio\\
+  \end{minipage}%
+  \hspace{-0.05\textwidth}%
+  \begin{minipage}[t]{0.4\textwidth}
+    \centering
+    Paola Vazquez-Castillo\\
+  \end{minipage}\\
+  \normalsize{Interdisciplinary Center on Population Dynamics\\ University of Southern Denmark}\\
+}
+
+
+
+\date{}
+
+\begin{document}
+\maketitle
+
+% ------------------------------------------------------------------------------------------------------------------------------------------------- %
+
+\begin{abstract} 
+    \noindent The modal age at death is increasingly used to track longevity. Existing methods estimate it as a single number, and when they report uncertainty they do so through resampling or the delta method, which describe the variability of an estimator rather than the probability that a given age is the mode. We estimate this probability directly. Death counts are modeled as Poisson variables given age-specific death rates and exposures. A conjugate gamma prior gives the posterior distribution of the rates in closed form, and passing that posterior through the life table yields, for each age, the posterior probability that it is the modal age at death. We compute these probabilities by Monte Carlo integration with exact posterior draws, derive an exact one-dimensional formula for the probability that an age is a local mode, and give a Gaussian approximation that shows which ages compete for the mode. The posterior distribution concentrates on the true modal age as the population grows. Empirical examples use mortality data for six countries from 1960 to 2020.\\
+    \textbf{Keywords:} Modal age at death, Bayesian inference, Poisson--gamma model, life table, uncertainty quantification
+\end{abstract}
+
+
+% ----------------------------------------------- %
+\section{Context and Motivation}
+% ----------------------------------------------- %
+Life expectancy at birth has long been the standard summary measure of mortality. It condenses the entire life table into a single number that is convenient for comparison across time and populations \citep{preston2000demography}. Yet, despite its apparent simplicity, its interpretation is not straightforward. In a period life table, life expectancy reflects mortality conditions observed during a specific calendar year rather than the actual lifespan of any population \citep{bongaarts2006long}. Moreover, it is highly sensitive to changes in mortality at younger ages and aggregates the influence of mortality across all ages. As survival improves at older ages, this averaging can mask where mortality improvements actually occur and how they reshape the distribution of deaths \citep{fries2002aging, wilmoth1999rectangularization}.
+
+The \emph{modal age at death} offers a more robust alternative. It identifies the age at which deaths are most concentrated, summarizing the prevailing location of adult mortality \citep{bergeron2015decomposing, canudas2008modal}. Unlike life expectancy, the mode is largely unaffected by infant or early-adult mortality and is driven mainly by changes in survival at older ages. It therefore provides a clearer picture of longevity improvements associated with the postponement of deaths to later life. Accurate estimation of the mode is crucial for studying aging patterns, lifespan variation, and the dynamics of population aging. Yet, obtaining precise estimates is not straightforward, as most existing methods either estimate the mode from fitted models or rely on specific mathematical properties of the mode itself \citep{kannisto2001mode, horiuchi2013modal, vazquez2024longevity}.
+
+A variety of methods have been developed to estimate the mode. Parametric models, such as the Gompertz, Weibull, and logistic models, estimate the mode analytically from mortality curves \citep{kannisto2001mode, missov2015gompertz}. These models provide insight into adult mortality dynamics but rely on assumed functional forms that may not capture the empirical age-at-death distribution fully.
+
+Nonparametric approaches have been developed to address these limitations. One class of methods uses smoothing techniques—typically penalized splines—to estimate mortality rates and then determine the modal age from the resulting smooth surface \citep{ouellette2011changes}. Another set of approaches derives the mode directly from the life table’s age-at-death distribution. \citet{kannisto2001mode} proposed a quadratic interpolation to refine the discrete life-table mode, while \citet{vazquez2024longevity} recently introduced the discretized derivative test (DDT), which identifies the mode as the age that satisfies its defining mathematical properties. 
+
+Across both parametric and nonparametric frameworks, most methods focus on modeling the mortality curve, from which the modal age at death is subsequently derived \citep[see, e.g.,][]{booth2008mortality}. In all cases, these approaches yield a \emph{single} point estimate of the mode. When uncertainty is reported, it is obtained indirectly, through resampling procedures such as the bootstrap or, when the model's structure permits, by applying the delta method to estimated parameters \citep{andreev2010spreadsheet, keyfitz2005applied}. Both describe how much an \emph{estimator} of the mode would vary over hypothetical repetitions of the data. Neither answers the question a demographer usually has in mind when looking at a particular population and year: given the deaths and exposures we observed, how likely is it that the modal age is 85 rather than 86?
+
+This paper answers that question directly. The modal age is a property of the life table, and the life table is a deterministic function of the age-specific death rates. If the rates were known, the mode would be known exactly. What is uncertain is our knowledge of the rates, because they are estimated from a finite number of deaths. We therefore describe that uncertainty with a probability distribution for the rates given the data, and carry it through the life table to the mode. The result is a \emph{posterior probability distribution} of the modal age at death: for each age $x$, the probability that $x$ is the modal age, given the observed data.
+
+The construction uses only standard ingredients. Following \citet{brillinger1986biometrics}, age-specific death counts are modelled as Poisson variables whose means are the product of the death rate and the exposure. With a conjugate gamma prior, the posterior distribution of each rate is a gamma distribution available in closed form, so no Markov chain sampling is needed. The probability that each age is the mode is then an explicit integral over this posterior. We evaluate it by Monte Carlo integration with exact draws, derive an exact one-dimensional formula for the probability that an age is a local mode, and give a Gaussian approximation that shows which ages compete for the mode and why. We also show that the distribution concentrates on the true modal age as the population grows.
+
+The framework does not condition on the total number of deaths and does not resample the data. Section~\ref{sec:why_posterior} explains why this matters: a bootstrap distribution and a posterior distribution can produce similar numbers in large populations, but they answer different questions, and for a non-smooth quantity such as the mode the bootstrap's own justification breaks down.
+
+% ----------------------------------------------- %
+\section{A Posterior Distribution for the Modal Age at Death}
+\label{sec:method}
+% ----------------------------------------------- %
+
+We build the method in steps. Section~\ref{sec:target} defines the target, the modal age of the life-table distribution of deaths, and shows that it is a function of the death rates alone. Section~\ref{sec:posterior} specifies a Poisson model for death counts and derives the posterior distribution of the rates. Section~\ref{sec:mode_dist} carries that posterior through the life table to obtain the probability that each age is the mode, and Section~\ref{sec:analytic} gives two analytic results that make the computation transparent. Section~\ref{sec:convergence} shows that the distribution concentrates on the true modal age in large populations. Section~\ref{sec:why_posterior} compares the approach with resampling, and Section~\ref{sec:extensions} discusses what the method estimates when single-year rates are noisy, and how it extends.
+
+% ----------------------------------------------- %
+\subsection{The modal age is a function of the death rates}
+\label{sec:target}
+% ----------------------------------------------- %
+
+Let $x = x_0, x_0+1, \dots, \omega-1$ index single-year age intervals $[x, x+1)$, starting at an age $x_0$ and ending before the open-ended interval $\omega+$. For each age we observe the number of deaths $D_x$ and the person-years of exposure $E_x$. Let $m_x$ be the unknown death rate at age $x$, and write $\bm{m} = (m_{x_0}, \dots, m_{\omega-1})^\top$, $\bm{D}$ and $\bm{E}$ for the corresponding vectors. There are $K = \omega - x_0$ ages.
+
+Assuming a constant force of mortality within each interval, the life table is
+\begin{equation}
+\begin{aligned}
+q_x = 1 - e^{-m_x}, \qquad
+\ell_x = \exp\Big(-\sum_{y=x_0}^{x-1} m_y\Big), \qquad
+d_x = \ell_x \, q_x ,
+\end{aligned}
+\label{eq:lifetable}
+\end{equation}
+with $\ell_{x_0} = 1$. These are the standard constant-force formulas \citep{preston2000demography}: $d_x$ is the probability that a person alive at age $x_0$ dies in the interval $[x, x+1)$. The modal age at death is the age with the largest $d_x$,
+\begin{equation}
+M(\bm{m}) = \operatorname*{arg\,max}_{x_0 \le x < \omega} \; d_x(\bm{m}).
+\label{eq:mode_def}
+\end{equation}
+
+Three features of this definition guide the rest of the paper.
+
+First, the mode depends only on the rates at ages $x_0$ and above. Mortality below $x_0$ multiplies every $d_x$ by the same factor, the probability of surviving from birth to $x_0$, and a common factor does not move the maximum. This is the formal counterpart of the familiar statement that the mode is unaffected by infant and child mortality. The starting age $x_0$ is needed only to exclude the peak of deaths in infancy; we use $x_0 = 40$.
+
+Second, the target is the \emph{life-table} distribution of deaths, not the distribution of observed deaths $D_x / \sum_y D_y$. The observed distribution also reflects the age structure of the population: a large birth cohort produces many deaths at whatever age it currently occupies, whatever the level of mortality. The life table removes this effect by working with rates.
+
+Third, if $\bm{m}$ were known, $M$ would be a fixed number. The mode is not random in itself; our knowledge of it is uncertain because $\bm{m}$ is estimated from finitely many deaths. The question ``how likely is it that age $x$ is the modal age?'' is therefore a question about $\bm{m}$ given the data, and its answer is a posterior probability:
+\begin{equation}
+\mathbb{P}(M = x \mid \bm{D}) = \int \mathbb{I}\{M(\bm{m}) = x\} \, p(\bm{m} \mid \bm{D}) \, d\bm{m},
+\label{eq:post_mode}
+\end{equation}
+where $\mathbb{I}\{\cdot\}$ is the indicator function and $p(\bm{m} \mid \bm{D})$ is the posterior density of the rates (exposures are treated as known and left implicit). Equation~\eqref{eq:post_mode} is the central object of the paper. The next two subsections specify $p(\bm{m} \mid \bm{D})$ and show how to evaluate the integral.
+
+% ----------------------------------------------- %
+\subsection{Death counts and the posterior distribution of the rates}
+\label{sec:posterior}
+% ----------------------------------------------- %
+
+Following \citet{brillinger1986biometrics}, we model the death count at each age as
+\begin{equation}
+D_x \mid m_x \sim \text{Poisson}(m_x E_x),
+\label{eq:poisson}
+\end{equation}
+independently across ages. The Poisson model follows from treating each person-year at age $x$ as carrying a small, approximately constant risk of death, with individuals dying independently given the rates. It is the standard likelihood behind the occurrence--exposure rate $D_x / E_x$, which is its maximum likelihood estimator. Departures from it, such as overdispersion, are discussed in Section~\ref{sec:extensions}.
+
+We do not condition on the total number of deaths $n = \sum_x D_x$. Conditioning independent Poisson counts on their sum gives a multinomial distribution with cell probabilities $m_x E_x / \sum_y m_y E_y$ \citep[e.g.,][]{bishop2007discrete}. These are the expected shares of \emph{observed} deaths, which mix mortality with age structure, and they are not the life-table $d_x$. The life table uses the counts only through the rates, so there is no reason to treat the total as fixed.
+
+For each rate we take a gamma prior, $m_x \sim \text{Gamma}(\alpha, \beta)$, independently across ages. The gamma family is conjugate to the Poisson likelihood \citep{gelman1995bayesian}, so the posterior is
+\begin{equation}
+m_x \mid \bm{D} \sim \text{Gamma}(\alpha + D_x, \; \beta + E_x),
+\label{eq:gamma_post}
+\end{equation}
+independently across ages, with shape $\alpha + D_x$ and rate $\beta + E_x$. As a default we use $\alpha = 1/2$ and $\beta = 0$, the Jeffreys prior $p(m_x) \propto m_x^{-1/2}$ for a Poisson rate \citep{gelman1995bayesian}. The posterior is then proper whenever $E_x > 0$, including ages with no observed deaths.
+
+Under this prior the posterior mean of $m_x$ is $(D_x + 1/2)/E_x$, essentially the observed rate, and the posterior coefficient of variation is $1/\sqrt{D_x + 1/2}$. The relative uncertainty about each rate therefore depends only on the number of deaths observed at that age: about 3\% with 1{,}000 deaths and 1\% with 10{,}000 deaths. The prior matters only at ages with very few deaths, where any estimator has to rely on some assumption.
+
+Independence in \eqref{eq:gamma_post} is a statement about the rates. It does not make the life-table deaths $d_x$ independent: through $\ell_x$, each $d_x$ depends on every rate below age $x$. Draws of $\bm{m}$ from \eqref{eq:gamma_post}, passed through \eqref{eq:lifetable}, carry this dependence automatically, so no covariance structure for $\bm{d}$ has to be specified.
+
+% ----------------------------------------------- %
+\subsection{From the posterior of the rates to the distribution of the mode}
+\label{sec:mode_dist}
+% ----------------------------------------------- %
+
+Equations \eqref{eq:lifetable}--\eqref{eq:gamma_post} fully define the posterior probability \eqref{eq:post_mode}. Because the posterior of $\bm{m}$ is a product of known gamma distributions, we can draw from it exactly and evaluate \eqref{eq:post_mode} by Monte Carlo integration. For $s = 1, \dots, S$, draw $m_x^{(s)}$ from \eqref{eq:gamma_post} for every age, compute $\bm{d}^{(s)}$ from \eqref{eq:lifetable}, and record $M^{(s)} = M(\bm{m}^{(s)})$. The estimate is
+\begin{equation}
+\widehat{\mathbb{P}}(M = x \mid \bm{D}) = \frac{1}{S} \sum_{s=1}^{S} \mathbb{I}\{M^{(s)} = x\}.
+\label{eq:mc}
+\end{equation}
+
+The data are held fixed throughout; only the rates vary, and they vary according to their posterior distribution. The simulation is a way of computing the integral in \eqref{eq:post_mode}, in the same sense that quadrature computes a one-dimensional integral, and it creates no new data sets. Its error is under our control. Because \eqref{eq:mc} is an average of $S$ independent Bernoulli variables, its standard error is $\sqrt{\mathbb{P}(1-\mathbb{P})/S} \le 1/(2\sqrt{S})$: at most $0.005$ with $S = 10^4$ draws and $0.0016$ with $S = 10^5$. The estimated probabilities sum to one by construction, so no normalization step is needed. Algorithm~\ref{alg:estimation} summarizes the procedure.
+
+\begin{algorithm}[htb!]
+\caption{Posterior distribution of the modal age at death}
+\label{alg:estimation}
+\small{
+  \SetAlgoLined
+  \KwIn{Death counts $D_x$ and exposures $E_x$ for $x_0 \le x < \omega$; prior $(\alpha, \beta)$; number of draws $S$}
+  \KwOut{$\widehat{\mathbb{P}}(M = x \mid \bm{D})$ for each age $x$}
+  \For{$s = 1, \dots, S$}{
+    \For{$x = x_0, \dots, \omega - 1$}{
+      Draw $m_x^{(s)} \sim \text{Gamma}(\alpha + D_x, \, \beta + E_x)$ \;
+    }
+    Compute $q_x^{(s)}$, $\ell_x^{(s)}$ and $d_x^{(s)}$ from Equation~\eqref{eq:lifetable} \;
+    Record $M^{(s)} \leftarrow \operatorname{arg\,max}_x d_x^{(s)}$ \;
+  }
+  \For{$x = x_0, \dots, \omega - 1$}{
+    $\widehat{\mathbb{P}}(M = x \mid \bm{D}) \leftarrow S^{-1} \sum_{s} \mathbb{I}\{M^{(s)} = x\}$ \;
+  }
+  \Return{$\widehat{\mathbb{P}}(M = x \mid \bm{D})$}
+}
+\end{algorithm}
+
+The output is a full probability distribution over ages. It can be summarized by its most probable age, by the probability attached to it, or by a credible set: the smallest set of ages whose posterior probabilities add up to at least $0.95$. The same construction applies to any other quantity computed from the life table. Replacing the indicator in \eqref{eq:post_mode} with $\mathbb{I}\{g(\bm{m}) \in A\}$ gives posterior probabilities for life expectancy, lifespan variation or any other function $g$ of the rates.
+
+% ----------------------------------------------- %
+\subsection{Two analytic results}
+\label{sec:analytic}
+% ----------------------------------------------- %
+
+Monte Carlo integration is our reference computation. Two analytic results complement it: an exact formula for the probability that an age is a \emph{local} mode, and a Gaussian approximation for the global mode.
+
+\paragraph{Local modes.} Age $x$ is a local mode if $d_{x-1} < d_x > d_{x+1}$. Equation~\eqref{eq:lifetable} gives $d_{x-1} = \ell_{x-1}(1 - e^{-m_{x-1}})$, $d_x = \ell_{x-1} e^{-m_{x-1}}(1 - e^{-m_x})$ and $d_{x+1} = \ell_{x-1} e^{-m_{x-1}} e^{-m_x} (1 - e^{-m_{x+1}})$. The common factors cancel, and each comparison involves only two neighbouring rates:
+\begin{align}
+d_x > d_{x-1} &\iff m_{x-1} < u(m_x), \label{eq:left}\\
+d_x > d_{x+1} &\iff m_{x+1} < v(m_x), \label{eq:right}
+\end{align}
+where $u(m) = \log(2 - e^{-m})$, and $v(m) = -\log(2 - e^{m})$ for $m < \log 2$ and $v(m) = +\infty$ otherwise. Under \eqref{eq:gamma_post}, $m_{x-1}$, $m_x$ and $m_{x+1}$ are independent. Conditioning on $m_x$ therefore makes the two events independent, and integrating over $m_x$ gives the following result.
+
+\begin{proposition}
+\label{prop:local}
+Let $g_x$ and $G_x$ denote the posterior density and distribution function of $m_x$ in \eqref{eq:gamma_post}, with $G_x(+\infty) = 1$. Then
+\begin{equation}
+\mathbb{P}(d_{x-1} < d_x > d_{x+1} \mid \bm{D}) 
+ = \int_0^\infty g_x(m)\, G_{x-1}\big(u(m)\big)\, G_{x+1}\big(v(m)\big)\, dm .
+\label{eq:local}
+\end{equation}
+\end{proposition}
+
+The integral in \eqref{eq:local} is one-dimensional and can be evaluated to high accuracy with standard quadrature. It is useful in two ways.
+
+It shows what makes an age a mode. For small rates, $u(m) \approx m - m^2$ and $v(m) \approx m + m^2$, so age $x$ is a local mode when
+\begin{equation*}
+m_x - m_{x-1} \gtrsim m_x^2 \gtrsim m_{x+1} - m_x .
+\end{equation*}
+The rate must rise into age $x$ by more than the square of the rate, and rise out of it by less. This is the discrete counterpart of the condition that defines the mode of a continuous lifespan density $f(x) = \mu(x) S(x)$: since $f'(x) = [\mu'(x) - \mu(x)^2] S(x)$, the mode satisfies $\mu'(M) = \mu(M)^2$. The posterior probability in \eqref{eq:local} measures how strongly the data support this crossing at age $x$.
+
+It also provides a diagnostic. Summing \eqref{eq:local} over ages gives the posterior expected number of local modes. When this sum is close to one, the local and the global mode coincide in almost every posterior draw, and \eqref{eq:local} approximates \eqref{eq:post_mode} directly. When it is well above one, the single-year schedule is rough enough that its highest point is partly determined by random fluctuation between neighbouring ages. Section~\ref{sec:extensions} returns to this case.
+
+The global mode has no comparable reduction, because $d_x$ depends on all rates below $x$ through $\ell_x$. Its probability is a $K$-dimensional integral, which is why we evaluate \eqref{eq:post_mode} by Monte Carlo.
+
+\paragraph{Gaussian approximation.} When many deaths are observed at each age, the posterior of $\bm{m}$ is approximately Gaussian with mean $\hat{\bm{m}}$, the vector of posterior means $(\alpha + D_x)/(\beta + E_x)$, and diagonal covariance $\bm{V}$ with entries $(\alpha + D_x)/(\beta + E_x)^2$. By the delta method, $\bm{d} \approx \mathcal{N}(\hat{\bm{d}}, \bm{\Sigma}_d)$ with $\hat{\bm{d}} = \bm{d}(\hat{\bm{m}})$ and $\bm{\Sigma}_d = \bm{J} \bm{V} \bm{J}^\top$. The Jacobian $\bm{J}$ is lower triangular:
+\begin{equation}
+\frac{\partial d_x}{\partial m_y} =
+\begin{cases}
+-d_x, & y < x,\\
+\ell_{x+1}, & y = x,\\
+0, & y > x,
+\end{cases}
+\label{eq:jacobian}
+\end{equation}
+evaluated at $\hat{\bm{m}}$. A higher rate at an earlier age lowers $d_x$ by lowering survival to $x$; a higher rate at age $x$ raises $d_x$; rates at later ages do not affect it.
+
+Age $x$ is the mode when all differences $d_x - d_j$, $j \neq x$, are positive. Let $\bm{\Lambda}_x$ be the $(K-1) \times K$ matrix whose rows are $\bm{e}_x - \bm{e}_j$ for $j \neq x$, where $\bm{e}_k$ is the $k$-th unit vector. Then $\bm{Y}_x = \bm{\Lambda}_x \bm{d} \approx \mathcal{N}(\bm{\Lambda}_x \hat{\bm{d}}, \, \bm{\Lambda}_x \bm{\Sigma}_d \bm{\Lambda}_x^\top)$, and
+\begin{equation}
+\mathbb{P}(M = x \mid \bm{D}) \approx \int_{R_x} f_{\bm{Y}_x}(\bm{y}) \, d\bm{y},
+\label{eq:gauss}
+\end{equation}
+where $f_{\bm{Y}_x}$ is the Gaussian density of $\bm{Y}_x$ and $R_x = [0, \infty)^{K-1}$ is the positive orthant. Orthant probabilities of this kind can be computed with the algorithms of \citet{genz2009computation}, implemented in the \texttt{mvtnorm} package \citep{mi2009mvtnorm}. Those algorithms are themselves randomized quasi-Monte Carlo methods, so \eqref{eq:gauss} does not remove simulation; its value is interpretive. It shows that ages compete for the mode through the standardized gaps $(\hat d_x - \hat d_j)/\text{sd}(d_x - d_j)$: two ages are both plausible modes when their life-table deaths differ by little relative to the posterior uncertainty of that difference. The approximation requires many deaths at the ages near the mode. When counts are small, \eqref{eq:mc} should be used.
+
+% ----------------------------------------------- %
+\subsection{Concentration in large populations}
+\label{sec:convergence}
+% ----------------------------------------------- %
+
+A useful method should identify the modal age with certainty when the data are unlimited. The following proposition shows that the posterior distribution of $M$ has this property.
+
+\begin{proposition}
+\label{prop:convergence}
+Let $\bm{m}^0$ be the true rates, and suppose that $\bm{d}(\bm{m}^0)$ has a unique maximizer $x^\star$, with gap $\delta = d_{x^\star}(\bm{m}^0) - \max_{j \neq x^\star} d_j(\bm{m}^0) > 0$. Let the data follow \eqref{eq:poisson} with $\bm{m} = \bm{m}^0$ and exposures $E_x = c_x N$, $c_x > 0$. Then, as $N \to \infty$,
+\[
+\mathbb{P}(M = x^\star \mid \bm{D}) \xrightarrow{\;p\;} 1 .
+\]
+\end{proposition}
+
+\begin{proof}
+Write $\bar m_x = (\alpha + D_x)/(\beta + c_x N)$ and $s_x^2 = (\alpha + D_x)/(\beta + c_x N)^2$ for the posterior mean and variance of $m_x$. Since $D_x / (c_x N) \to m_x^0$ in probability, $\bar m_x \to m_x^0$ and $s_x^2 \to 0$ in probability. Fix $\eta > 0$. On the event $|\bar m_x - m_x^0| < \eta/2$, Chebyshev's inequality gives $\mathbb{P}(|m_x - m_x^0| > \eta \mid \bm{D}) \le 4 s_x^2 / \eta^2$, and the probability of that event tends to one. A union bound over the $K$ ages then gives $\mathbb{P}(\max_x |m_x - m_x^0| > \eta \mid \bm{D}) \to 0$ in probability.
+
+The map $\bm{m} \mapsto \bm{d}(\bm{m})$ in \eqref{eq:lifetable} is continuous, so we can choose $\eta$ such that $\max_x |m_x - m_x^0| \le \eta$ implies $|d_x(\bm{m}) - d_x(\bm{m}^0)| < \delta/2$ for all $x$. For such $\bm{m}$, $d_{x^\star}(\bm{m}) > d_{x^\star}(\bm{m}^0) - \delta/2 \ge d_j(\bm{m}^0) + \delta/2 > d_j(\bm{m})$ for every $j \neq x^\star$, so $M(\bm{m}) = x^\star$. Hence $\mathbb{P}(M = x^\star \mid \bm{D}) \ge 1 - \mathbb{P}(\max_x |m_x - m_x^0| > \eta \mid \bm{D}) \to 1$.
+\end{proof}
+
+The speed of concentration depends on the gap $\delta$ relative to the posterior standard deviation of the differences $d_{x^\star} - d_j$, which shrinks roughly in proportion to the inverse square root of the number of deaths. Because the life-table distribution of deaths is flat near its peak, $\delta$ is often small, and the posterior can remain spread over two or three ages even in large populations. Such a spread is informative: it says that the data cannot distinguish neighbouring ages, which a single point estimate would hide.
+
+The target $x^\star$ is the single-year interval with the most life-table deaths. When the underlying continuous density is unimodal, $x^\star$ is the interval containing its mode or one of the two adjacent intervals, because the mass in each interval decreases with distance from the mode on either side. The discrete framework therefore locates the continuous mode to within about one year.
+
+% ----------------------------------------------- %
+\subsection{Why a posterior and not a resampling distribution}
+\label{sec:why_posterior}
+% ----------------------------------------------- %
+
+A common way to attach uncertainty to a life-table quantity is the parametric bootstrap. One generates replicate counts $D_x^\ast \sim \text{Poisson}(\hat m_x E_x)$ from the estimated rates $\hat m_x = D_x / E_x$, recomputes the mode $\hat M^\ast = M(\bm{D}^\ast / \bm{E})$ for each replicate, and reports the frequencies
+\begin{equation}
+\mathbb{P}^\ast(\hat M^\ast = x) = \sum_{\bm{D}^\ast} \mathbb{I}\{M(\bm{D}^\ast/\bm{E}) = x\}\, p(\bm{D}^\ast \mid \hat{\bm{m}}).
+\label{eq:boot}
+\end{equation}
+Equations \eqref{eq:post_mode} and \eqref{eq:boot} have a similar form, but the roles of data and parameters are reversed. In \eqref{eq:boot} the rates are fixed at their estimates and the data vary over hypothetical replicates. In \eqref{eq:post_mode} the data are fixed at what was observed and the rates vary over the values consistent with them. Equation~\eqref{eq:boot} answers the question: how often would our estimator return age $x$ if we observed new data from a population whose rates equal our estimates? Equation~\eqref{eq:post_mode} answers: given the data we have, how probable is it that age $x$ is the modal age? Only the second is a probability statement about the modal age of the population under study.
+
+Both quantities are usually computed by simulation, and both are, in principle, exact sums or integrals. The difference lies in what is averaged over, not in how the average is computed. Equation~\eqref{eq:boot} averages over data sets that were never observed, holding the rates at estimates that differ from the true rates by sampling error. Equation~\eqref{eq:post_mode} averages over rates, holding the data at what was observed. In \eqref{eq:mc} the simulation is only a numerical device, and it can be replaced by other methods, as Proposition~\ref{prop:local} does for local modes.
+
+For smooth functions of the rates, such as life expectancy, and for large numbers of deaths, the two approaches give nearly the same numbers \citep{van2000asymptotic}, and the difference between them is one of interpretation. The mode is not smooth. It takes integer values and jumps from one age to another when two values of $d_x$ cross. Even the maximum $\max_x d_x$, which is continuous, is not differentiable where two components tie, and for such functions the standard bootstrap is inconsistent: \citet{fang2019inference} show that, for estimators with Gaussian limits, bootstrap consistency for $\phi(\theta)$ requires $\phi$ to be fully differentiable \citep[see also][]{andrews2000inconsistency}. The argmax is less regular still. Near-ties are the typical situation around the mode, because the distribution of deaths is flat near its peak. The posterior probability \eqref{eq:post_mode} needs no such asymptotic justification: under the Poisson model and the chosen prior, it is the exact conditional probability for any number of deaths.
+
+Sparse data make the difference concrete. If no deaths are observed at some age, then $\hat m_x = 0$ and every bootstrap replicate also has zero deaths at that age, so the bootstrap treats the rate as known to be zero. The posterior \eqref{eq:gamma_post} keeps a proper distribution, $\text{Gamma}(1/2, E_x)$, which assigns positive probability to positive rates. This matters in small populations and at the highest ages.
+
+% ----------------------------------------------- %
+\subsection{Raw rates, smooth rates and extensions}
+\label{sec:extensions}
+% ----------------------------------------------- %
+
+Under the independent priors in \eqref{eq:gamma_post}, each rate is informed only by the deaths and exposure at its own age. The posterior of $M$ then describes the mode of the \emph{raw} single-year schedule, including random fluctuation between neighbouring ages. Because $\bm{d}$ is flat near its peak, such fluctuation can create several local maxima, and the expected number of local modes from Proposition~\ref{prop:local} shows how strongly this affects a given population and year.
+
+If the target is instead the mode of the underlying smooth mortality curve, the prior should say so. A random-walk prior on $\log m_x$, or a penalized spline representation of the log rates \citep{delwarde2007smoothing, ouellette2011changes}, links neighbouring ages and removes most of the year-to-year roughness. The posterior is then no longer available in closed form, but it can be sampled by Markov chain Monte Carlo, for example in Stan \citep{carpenter2017stan}. Equation~\eqref{eq:post_mode} and Algorithm~\ref{alg:estimation} remain unchanged; only the step that draws $\bm{m}$ is replaced. The mode of the raw schedule and the mode of the smooth curve are different estimands, and an analysis should state which one it targets.
+
+The same structure accommodates other extensions. Overdispersion can be handled by replacing the Poisson model \eqref{eq:poisson} with a negative binomial or another mixed Poisson model. Hierarchical priors can pool information across years, sexes or countries, which stabilizes estimates for small populations. With a smooth prior on a continuous age scale, each posterior draw defines a continuous lifespan density with its own mode, located where $\mu'(x) = \mu(x)^2$. The draws then give a continuous posterior density for the modal age, without discretizing age into single-year intervals.
+
+% ----------------------------------------------- %
+\section{Empirical Application}
+% ----------------------------------------------- %
+{\color{red}
+\begin{enumerate}
+    \item Section 3 is empty. The abstract promises six countries, and the conclusions claim results (“highlighted its ability to capture … gender differences”). That paragraph is left over from the old draft and has no support in the paper. Rewrite it once the results exist.
+
+    \item There is no simulation study. You need one showing the frequentist coverage of the 95\% credible sets against the parametric bootstrap, across population sizes from Denmark to the US. That is the evidence that the method is worth using.
+
+    \item Section 2.6 overreaches
+    \begin{itemize}
+        \item The bootstrap’s inconsistency for $argmax$ bites near ties. Under Proposition 2’s assumption that $\delta > 0$, the bootstrap also concentrates on $x*$.
+
+        \item The posterior has no frequentist calibration guarantee near ties either. Saying it “needs no asymptotic justification” is true only conditionally on the model and the prior. Criticising the bootstrap on frequentist grounds while exempting the posterior will draw pushback.
+
+        \item The fix is to soften the tone, state the asymmetry honestly, and let the simulation make the case.
+    \end{itemize}
+
+    \item The sparse-data argument is weak for the mode. Zero-death ages occur above 100, never near the mode. It matters only for small or subnational populations. Either demonstrate a case of that kind or drop the argument.
+
+    \item There is no comparison with point estimators. Show where the DDT, Kannisto, and P-spline modes fall within the posterior. This is Paola’s method, so it’s an easy add.
+
+    \item Novelty framing. Pushing a Poisson–gamma posterior through a life table is standard. Present the contribution as three things: the argmax posterior, Proposition 1, and the local-mode diagnostic. Proposition 2 could shrink to a remark.
+
+    \item Credible sets can be non-contiguous when the raw schedule is rough. Mention this in the text.
+\end{enumerate}
+}
+% ----------------------------------------------- %
+\section{Concluding Remarks and Future Directions}
+% ----------------------------------------------- %
+
+We introduced a framework in which the uncertainty about the modal age at death is expressed as a posterior probability distribution: for each age, the probability that it is the modal age, given the observed deaths and exposures. Death counts are Poisson given the rates, a conjugate gamma prior gives the posterior of the rates in closed form, and the life table carries that posterior to the mode. The method does not fix the total number of deaths and does not resample the data. Monte Carlo integration is used only to evaluate the posterior probabilities, and the probability that an age is a local mode has an exact one-dimensional form.
+
+The application of our methodology to high-quality mortality data from six countries highlighted its ability to capture longevity patterns, including temporal trends and gender differences in modal age. Additionally, the framework's robustness in reflecting the uncertainty surrounding the modal age offers a valuable tool for demographic analysis, especially in contexts with smaller populations or fluctuating mortality patterns.
+
+The framework has limitations. The Poisson model assumes that deaths occur independently given the rates. Dependencies due to shared environmental or social factors, such as clustering in epidemics, violate this assumption and produce overdispersion \citep{leger2021can}, in which case the posterior understates uncertainty. Data quality issues, such as age misreporting or incomplete records, bias the rates themselves \citep{preston1999effects}, and no model of random variation corrects for them. The Gaussian approximation in Equation~\eqref{eq:gauss} also requires many deaths at the ages near the mode; the Monte Carlo computation in Equation~\eqref{eq:mc} does not. Finally, with independent priors across ages the method describes the mode of the raw single-year schedule. In small populations this schedule is rough, and the probability that a given age is the mode partly reflects random fluctuation between neighbouring ages (Section~\ref{sec:extensions}).
+
+Each of these limitations points to a specific extension of the same posterior computation. Overdispersion can be modelled with negative binomial or Bell distributions \citep{castellares2018bell}. A smoothness prior on the log rates targets the mode of the underlying mortality curve rather than of the raw schedule, and hierarchical priors can pool information across years, sexes or countries to stabilize estimates for small populations \citep{gelman1995bayesian}. For populations with irregular mortality patterns, functional clustering, as explored by \citet{leger2021can}, can identify systematic differences in mortality profiles. A smooth prior on a continuous age scale also gives a continuous posterior density for the modal age, in line with Gaussian-process models of mortality \citep{ludkovski2018gaussian}.
+
+This framework can also be extended to leverage the Human Cause-of-Death (HCD) series recently incorporated into the Human Mortality Database. By modeling age-specific death counts disaggregated by cause, the framework can estimate the probability distribution of the modal age at death for each specific cause. This extension would offer a clearer view of how different causes shape the distribution of deaths around the mode—both in terms of central tendency and variability. For instance, it would allow researchers to distinguish between causes that predominantly affect the timing of death (e.g., shifting the mode) and those that influence its dispersion. Such distinctions are crucial for understanding the dynamics underlying longevity improvements or stagnation, and for identifying the specific causes that contribute most to emerging inequalities in mortality.
+
+By reporting a probability for each age rather than a single modal value, the method shows how firmly the data identify the modal age, and which neighbouring ages remain plausible. Because the probabilities are posterior probabilities derived from the counts and exposures, they can be compared across populations and years of different size, and the same computation applies to any other quantity derived from the life table.
+
+% ----------------------------------------------- %
+\section*{Acknowledgments}
+% ----------------------------------------------- %
+
+\paragraph*{Funding:}
+We gratefully acknowledge the financial support from the AXA Research Fund through the funding for the “\textit{AXA Chair in Longevity Research}”. This article is funded by the European Union (ERC, Born Once – Die Once, Grant agreement ID 101043983). Views and opinions expressed are however those of the author only and do not necessarily reflect those of the European Union or the European Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them.
+
+\paragraph*{Author Contributions (CRediT):}
+S.C.P.: Conceptualization, Methodology, Software, Formal analysis, Investigation, Writing -- original draft, Writing -- review and editing. P.V.C.: Conceptualization, Validation, Visualization, Software, Writing -- review and editing.
+
+\paragraph*{Competing interests:} The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+
+\paragraph*{Data and materials availability:} The code, simulation settings, and materials required to reproduce the analyses, tables, and figures are openly available at \url{https://github.com/scpatricio/modal_age_posterior}.
+
+
+
+% ------------------------------------------------------------------------------------------------------------------------------------------------- %
+
+\printbibliography
+
+% ------------------------------------------------------------------------------------------------------------------------------------------------- %
+
+\end{document}

@@ -1,0 +1,111 @@
+== Section 3, design ==
+scenario a (w = 1.00): peaks at 90; lower/main peak height = NA
+scenario b (w = 0.80): peaks at 67.84, 90; lower/main peak height = 0.35
+scenario c (w = 0.70): peaks at 66.43, 90; lower/main peak height = 0.52
+scenario d (w = 0.60): peaks at 65.88, 90; lower/main peak height = 0.75
+replications: 500; posterior draws: 5000
+
+== Section 3, choice of posterior summary (MAE, years) ==
+scenario a, N = 1000: RW2 mean 0.22, median 0.21, mode 0.21
+scenario a, N = 10000: RW2 mean 0.08, median 0.07, mode 0.07
+scenario b, N = 1000: RW2 mean 0.5, median 0.52, mode 0.62
+scenario b, N = 10000: RW2 mean 0.31, median 0.33, mode 0.44
+scenario c, N = 1000: RW2 mean 0.59, median 0.63, mode 0.74
+scenario c, N = 10000: RW2 mean 0.35, median 0.38, mode 0.51
+scenario d, N = 1000: RW2 mean 0.82, median 0.72, mode 0.87
+scenario d, N = 10000: RW2 mean 0.39, median 0.44, mode 0.61
+scenario d, N = 1000, bias: RW2 mean -0.35, median 0
+
+== Section 3, RW2 vs raw posterior ==
+MAE ratio raw/RW2 (posterior means), all cells: 1.38 to 10.57
+  unimodal (a): 3.79, 6.04, 10.57, 10.16
+  secondary peak (b-d), excluding d at N = 1000: 1.38 to 1.77
+example a, N = 1e4: RW2 0.08 vs raw 0.48
+d, N = 1000: raw mean MAE 3.96, RW2 mean MAE 0.82
+raw mean bias, a, N = 1000: -0.48
+RW2 mean bias, all cells except d at N = 1000: max |bias| = 0.1
+coverage raw: 0.942 to 0.996; RW2: 0.982 to 1
+width at N = 1e4, unimodal: RW2 0.52 vs raw 3.91
+width at N = 1e4, b-d: RW2 2.58, 2.86, 3.11; raw 4.13, 4.29, 4.57
+
+== Section 3, comparison with other estimators ==
+unimodal, N = 1000: RW2 mean 0.22, P-spline 0.21, Gompertz 0.2
+unimodal, N = 1e+06: RW2 mean 0.01, P-spline 0.01, Gompertz 0.01
+Gompertz bias b, c, d (range over N): -3.12/-3.09; -5.18/-5.17; -7.72/-7.7
+DDT bias, unimodal: -0.26 to -0.02
+N = 1e4, b-d: P-spline 0.2, 0.21, 0.24; RW2 mean 0.31, 0.35, 0.39
+N = 1000, b: P-spline 0.42 vs RW2 mean 0.5
+DDT bias, all scenarios: -1.18 to 0; DDT MAE by scenario at N = 1e4: 0.8, 0.87, 0.91, 0.96
+MAE at N = 1e4, all methods (a, b, c, d):
+  rw2_mean: 0.08, 0.31, 0.35, 0.39
+  raw_mean: 0.48, 0.52, 0.54, 0.59
+  pspline: 0.07, 0.2, 0.21, 0.24
+  gompertz: 0.06, 3.09, 5.17, 7.72
+  ddt: 0.8, 0.87, 0.91, 0.96
+
+== Section 3, bootstrap intervals of the benchmarks ==
+gompertz, scenario a: coverage 0.93, 0.904, 0.94, 0.938; width 0.92, 0.29, 0.09, 0.03 (N = 1e3 ... 1e6); no interval 0
+gompertz, scenario b: coverage 0, 0, 0, 0; width 1.38, 0.43, 0.14, 0.04 (N = 1e3 ... 1e6); no interval 0
+gompertz, scenario c: coverage 0, 0, 0, 0; width 1.65, 0.52, 0.16, 0.05 (N = 1e3 ... 1e6); no interval 0
+gompertz, scenario d: coverage 0, 0, 0, 0; width 1.99, 0.63, 0.2, 0.06 (N = 1e3 ... 1e6); no interval 0
+pspline, scenario a: coverage 0.928, 0.892, 0.934, 0.916; width 0.93, 0.29, 0.09, 0.03 (N = 1e3 ... 1e6); no interval 0
+pspline, scenario b: coverage 0.93, 0.934, 0.916, 0.924; width 1.94, 0.93, 0.4, 0.14 (N = 1e3 ... 1e6); no interval 0
+pspline, scenario c: coverage 0.872, 0.946, 0.902, 0.89; width 2.13, 1.05, 0.47, 0.16 (N = 1e3 ... 1e6); no interval 0
+pspline, scenario d: coverage 0.864, 0.934, 0.904, 0.784; width 3.01, 1.21, 0.53, 0.19 (N = 1e3 ... 1e6); no interval 0
+ddt, scenario a: coverage 0.99, 0.976, 0.962, 0.942; width 7.03, 3.5, 1.49, 0.56 (N = 1e3 ... 1e6); no interval 0
+ddt, scenario b: coverage 0.994, 0.97, 0.956, 0.96; width 7.54, 3.73, 1.7, 0.62 (N = 1e3 ... 1e6); no interval 0
+ddt, scenario c: coverage 0.984, 0.974, 0.964, 0.942; width 8.04, 3.91, 1.76, 0.66 (N = 1e3 ... 1e6); no interval 0
+ddt, scenario d: coverage 0.986, 0.98, 0.968, 0.954; width 23.27, 4.16, 1.89, 0.72 (N = 1e3 ... 1e6); no interval 0
+RW2 for reference, coverage by scenario at N = 1e3 ... 1e6:
+  rw2 a: coverage 0.986, 0.986, 0.998, 0.982; width 1.53, 0.52, 0.19, 0.08
+  rw2 b: coverage 0.998, 1, 0.998, 0.998; width 4.22, 2.58, 1.45, 0.63
+  rw2 c: coverage 0.992, 1, 0.998, 0.994; width 4.67, 2.86, 1.64, 0.69
+  rw2 d: coverage 1, 0.996, 0.996, 0.986; width 7.6, 3.11, 1.8, 0.75
+
+== Section 4, data ==
+countries: Denmark, France, Japan, Sweden; sexes: Female
+years: 1960 to 2025; population-years: 261
+last year by country: Denmark 2025, France 2024, Japan 2024, Sweden 2024
+starting ages: 40, 50, 60, 70; reference: 40
+lowest RW2 posterior mean at the reference starting age: 79.36 (Japan, 1960)
+
+== Section 4, trends (RW2 posterior mean, starting age 40) ==
+Denmark: 1960 81.27 (80.33-82.23) -> 2025 90.03 (89.46-90.56); change 8.76
+France: 1960 82.29 (81.79-82.85) -> 2024 92.01 (91.71-92.31); change 9.72
+Japan: 1960 79.36 (78.83-79.91) -> 2024 92.53 (92.29-92.78); change 13.18
+Sweden: 1960 81.47 (80.62-82.3) -> 2024 90.9 (90.46-91.33); change 9.43
+width of 95% interval: median 1.08, range 0.47 to 3.33
+median width by country: Denmark 1.64, France 0.84, Japan 0.81, Sweden 1.19
+median P(more than one major local mode): 0.002
+pspline: mean difference from RW2 mean 0.01, mean absolute difference 0.12, inside RW2 interval 99.6%
+ddt: mean difference from RW2 mean 0.08, mean absolute difference 0.39, inside RW2 interval 81.2%
+gompertz: mean difference from RW2 mean -0.15, mean absolute difference 0.44, inside RW2 interval 71.6%
+
+== Section 4, 2019 vs 2020 (RW2, starting age 40) ==
+Denmark: 2019 89.11 (88.37-89.86); 2020 89.55 (88.67-90.38); intervals overlap: TRUE
+France: 2019 91.85 (91.55-92.48); 2020 91.33 (90.95-91.58); intervals overlap: TRUE
+Japan: 2019 93.01 (92.71-93.28); 2020 93.21 (92.85-93.5); intervals overlap: TRUE
+Sweden: 2019 90.38 (89.83-90.98); 2020 89.85 (89.41-90.28); intervals overlap: TRUE
+
+== Section 4, starting age (also Table 1) ==
+rw2_mean, 50 vs 40: mean -0.001, mean abs 0.01, max abs 0.093
+rw2_median, 50 vs 40: mean -0.002, mean abs 0.011, max abs 0.103
+rw2_mode, 50 vs 40: mean -0.004, mean abs 0.026, max abs 0.304
+gompertz, 50 vs 40: mean 0.113, mean abs 0.113, max abs 0.242
+pspline, 50 vs 40: mean -0.003, mean abs 0.013, max abs 0.262
+ddt, 50 vs 40: mean 0, mean abs 0, max abs 0
+rw2_mean, 60 vs 40: mean -0.002, mean abs 0.017, max abs 0.227
+rw2_median, 60 vs 40: mean -0.002, mean abs 0.019, max abs 0.25
+rw2_mode, 60 vs 40: mean -0.005, mean abs 0.043, max abs 0.464
+gompertz, 60 vs 40: mean 0.296, mean abs 0.296, max abs 0.586
+pspline, 60 vs 40: mean 0.004, mean abs 0.021, max abs 0.304
+ddt, 60 vs 40: mean 0, mean abs 0, max abs 0
+rw2_mean, 70 vs 40: mean -0.006, mean abs 0.028, max abs 0.283
+rw2_median, 70 vs 40: mean -0.007, mean abs 0.031, max abs 0.34
+rw2_mode, 70 vs 40: mean -0.011, mean abs 0.052, max abs 0.568
+gompertz, 70 vs 40: mean 0.372, mean abs 0.415, max abs 0.995
+pspline, 70 vs 40: mean 0.002, mean abs 0.035, max abs 0.475
+ddt, 70 vs 40: mean 0, mean abs 0, max abs 0
+rw2_mean, 70 vs 40, mean abs change by country: Denmark 0.05, France 0.02, Japan 0.03, Sweden 0.02
+pspline, 70 vs 40, mean abs change by country: Denmark 0.07, France 0.02, Japan 0.02, Sweden 0.03
+gompertz, 70 vs 40, mean abs change by country: Denmark 0.5, France 0.55, Japan 0.26, Sweden 0.34
