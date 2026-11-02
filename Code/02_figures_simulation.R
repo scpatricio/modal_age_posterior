@@ -93,7 +93,7 @@ plots = unlist(lapply(seq_along(scs), function(k) scenario_row_rw(scs[k], k == 1
 fig = wrap_plots(plots, ncol = 4, widths = c(1, 1, 1, 1.3)) +
   plot_annotation(
     tag_levels = list(c("A", "B", "C", "D", rep("", 4 * (length(scs) - 1)))))
-save_both(fig, "mc_scenarios.pdf", 2.9 * length(scs) + 1)
+save_both(fig, "mc_scenarios.pdf", 2.5 * length(scs) + 1)
 
 # ---- Errors by population size ----------------------------------------------
 
