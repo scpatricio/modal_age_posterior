@@ -86,12 +86,12 @@
 \author{%
   \begin{minipage}[t]{0.4\textwidth}
     \centering
-    Silvio C. Patricio\thanks{\texttt{silca@sam.sdu.dk}; ORCID: 0000-0002-1025-5571} \\
+    Silvio C. Patricio\thanks{\texttt{silca [at] sam.sdu.dk}; ORCID: 0000-0002-1025-5571} \\
   \end{minipage}%
   \hspace{-0.05\textwidth}%
   \begin{minipage}[t]{0.4\textwidth}
     \centering
-    Paola Vazquez-Castillo\thanks{\texttt{pavaz@sdu.dk}; ORCID: 0000-0001-9680-4721}\\
+    Paola Vazquez-Castillo\thanks{\texttt{pavaz [at] sdu.dk}; ORCID: 0000-0001-9680-4721}\\
   \end{minipage}\\
   \small{Interdisciplinary Center on Population Dynamics\\ University of Southern Denmark}\\
 }
@@ -171,7 +171,7 @@ Following \citet{brillinger1986biometrics}, we model the death count at each age
 D_x \mid m_x \sim \text{Poisson}(m_x E_x),
 \label{eq:poisson}
 \end{equation}
-independently across ages. This is the standard likelihood behind the occurrence--exposure rate $D_x / E_x$, which is its maximum likelihood estimator. We do not condition on the total number of deaths: conditioning independent Poisson counts on their sum gives a multinomial distribution whose cell probabilities are the expected shares of \emph{observed} deaths \citep{bishop2007discrete}, which mix mortality with age structure and are not the life-table $d_x$.
+independently across ages. This is the standard likelihood behind the occurrence--exposure rate $D_x / E_x$, which is its maximum likelihood estimator. We do not condition on the total number of deaths: conditioning independent Poisson counts on their sum gives a multinomial distribution whose cell probabilities are the expected shares of \emph{observed} deaths \citep{bishop1975discrete}, which mix mortality with age structure and are not the life-table $d_x$.
 
 For each rate we take a gamma prior, $m_x \sim \text{Gamma}(\alpha, \beta)$, independently across ages. The gamma family is conjugate to the Poisson likelihood \citep{gelman1995bayesian}, so the posterior is
 \begin{equation}
@@ -259,7 +259,7 @@ For fixed $\lambda$, the posterior mode of $\bm{\eta}$ maximizes
 \ell(\bm{\eta}) = \sum_{x} \left( D_x \eta_x - E_x e^{\eta_x} \right),
 \label{eq:penalized}
 \end{equation}
-which is the graduation criterion of \citet{whittaker1923new} written for Poisson counts. The second-order penalty also underlies P-splines \citep{eilers1996flexible, camarda2012mortalitysmooth}; the RW2 prior gives its Bayesian form \citep{lang2004bayesian, rue2005gaussian}. Computing the mode for each posterior schedule, while integrating over the smoothing strength $\lambda$, accounts for uncertainty in both the rates and their smoothness.
+which is the graduation criterion of \citet{whittaker1922new} written for Poisson counts. The second-order penalty also underlies P-splines \citep{eilers1996flexible, camarda2012mortalitysmooth}; the RW2 prior gives its Bayesian form \citep{lang2004bayesian, rue2005gaussian}. Computing the mode for each posterior schedule, while integrating over the smoothing strength $\lambda$, accounts for uncertainty in both the rates and their smoothness.
 
 Both priors target the modal age of the unknown rate schedule; RW2 adds the smoothness assumption in \eqref{eq:rw2}. This smoothness assumption can reduce accuracy where the true schedule bends sharply, for example where the age-at-death distributions of two subpopulations overlap. Section~\ref{sec:simulation} examines this case.
 
@@ -395,8 +395,8 @@ A limitation of the RW2 model is its single smoothing parameter, which must fit 
 \paragraph*{Funding:}
 We gratefully acknowledge the financial support from the AXA Research Fund through the funding for the “\textit{AXA Chair in Longevity Research}”. This article is funded by the European Union (ERC, Born Once – Die Once, Grant agreement ID 101043983). Views and opinions expressed are however those of the author only and do not necessarily reflect those of the European Union or the European Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them.
 
-\paragraph*{Author Contributions (CRediT):}
-S.C.P.: Conceptualization, Methodology, Software, Formal analysis, Investigation, Writing -- original draft, Writing -- review and editing. P.V.C.: Conceptualization, Validation, Visualization, Software, Writing -- review and editing.
+% \paragraph*{Author Contributions (CRediT):}
+% S.C.P.: Conceptualization, Methodology, Software, Formal analysis, Investigation, Writing -- original draft, Writing -- review and editing. P.V.C.: Conceptualization, Validation, Visualization, Software, Writing -- review and editing.
 
 \paragraph*{Competing interests:} The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
 
