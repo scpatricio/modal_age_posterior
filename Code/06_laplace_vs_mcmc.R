@@ -1,15 +1,18 @@
 # =============================================================================
 # 06_laplace_vs_mcmc.R
-# Checks the Laplace approximation of the RW2 posterior against exact
-# posterior sampling of the same model (Appendix D), for women in Denmark,
-# France, Japan and Sweden in 1960 and 2019, starting age 50.
+# Checks the Laplace approximation of the RW2 posterior against posterior
+# sampling of the same model (Appendix D): women in Denmark, France, Japan
+# and Sweden in 1960 and 2019 (starting age 50), and four small simulated
+# populations from the simulation study (scenarios a and d, N = 1000,
+# replications 1 and 2, starting age 40).
 #
-# Exact sampling: independence Metropolis-Hastings (rw_imh_cpp() in
-# rw_core.cpp) with the Laplace mixture over the grid of lambda as proposal.
-# The accept/reject step corrects any error of the approximation, so the
-# chain targets the exact posterior of the model (Poisson likelihood, RW2
-# prior, flat prior on the grid of log10 lambda). Its acceptance rate is a
-# direct measure of the quality of the approximation (1 if it were exact).
+# Sampling: independence Metropolis-Hastings (rw_imh_cpp() in rw_core.cpp)
+# with the Laplace mixture over the grid of lambda as proposal. Every grid
+# value is evaluated and has a positive proposal probability (Laplace weight
+# mixed with 1% uniform), so the chain targets the posterior of the model on
+# the full grid (Poisson likelihood, RW2 prior, flat prior on the grid of
+# log10 lambda). The acceptance rate measures the quality of the
+# approximation (1 if it were exact).
 #
 # Outputs:
 #   results/mcmc_check/laplace_vs_mcmc.csv   posterior summaries, both methods
@@ -20,7 +23,7 @@
 # =============================================================================
 
 if (!file.exists("utils.R")) stop("Run this script with the Code folder as working directory (open Code.Rproj).")
-for (f in c("utils.R", "mode_posterior.R", "mode_posterior_rw.R")) source(f)
+for (f in c("utils.R", "mode_posterior.R", "mode_posterior_rw.R", "simulation_truth.R")) source(f)
 library(ggplot2)
 if (!rw_use_cpp) stop("This check needs the C++ core (rw_core.cpp); see mode_posterior_rw.R.")
 
@@ -34,13 +37,29 @@ drop = 12
 cases = data.frame(code = rep(names(hmd_countries), each = 2),
                    country = rep(unname(hmd_countries), each = 2),
                    sex = "Female",
-                   year = rep(c(1960, 2019), length(hmd_countries)))
+                   year = rep(c(1960, 2019), length(hmd_countries)),
+                   start = start_age, scenario = NA, N = NA, rep = NA)
+# small simulated populations, same data sets as in 01_simulation.R
+sim_cases = expand.grid(rep = 1:2, scenario = c("a", "d"), stringsAsFactors = FALSE)
+sim_cases = data.frame(code = NA, country = sprintf("Simulated (%s)", sim_cases$scenario),
+                       sex = NA, year = NA, start = 40, scenario = sim_cases$scenario,
+                       N = 1e3, rep = sim_cases$rep)
+cases = rbind(cases, sim_cases)
+sim_weights = c(a = 1, b = 0.80, c = 0.70, d = 0.60)
+sim_data = function(cs) {
+  # task id as in 01_simulation.R (500 replications, N = 10^3 ... 10^6)
+  id = cs$rep + 500 * 0 + 500 * 4 * (match(cs$scenario, names(sim_weights)) - 1)
+  set.seed(20261104 + id)
+  sch = expected_schedule(sim_weights[[cs$scenario]], cs$N)
+  data.frame(age = sch$age, deaths = rpois(nrow(sch), sch$m * sch$exposure),
+             exposure = sch$exposure)
+}
 seed = 20261108
 
 out_dir = file.path("results", "mcmc_check")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
-hmd = do.call(rbind, lapply(unique(cases$code), load_country, data_dir = data_dir))
+hmd = do.call(rbind, lapply(unique(na.omit(cases$code)), load_country, data_dir = data_dir))
 
 # life-table deaths from draws of the log rates (draws in rows); last column
 # the open interval, as in mode_posterior_rw()
@@ -68,27 +87,34 @@ summ = list()
 probs = list()
 for (k in seq_len(nrow(cases))) {
   cs = cases[k, ]
-  y = hmd[hmd$country == cs$country & hmd$sex == cs$sex & hmd$year == cs$year, ]
-  s = prep_schedule(y$age, y$deaths, y$exposure, start_age, max_age)
+  y = if (is.na(cs$scenario)) {
+    hmd[hmd$country == cs$country & hmd$sex == cs$sex & hmd$year == cs$year, ]
+  } else {
+    sim_data(cs)
+  }
+  st = cs$start
+  s = prep_schedule(y$age, y$deaths, y$exposure, st, max_age)
   nc = length(s$age) - 1
   D = s$deaths[1:nc]
   E = s$exposure[1:nc]
   set.seed(seed + k)
 
   # Laplace approximation (the method used in the paper)
-  lap = mode_posterior_rw(y$age, y$deaths, y$exposure, start_age, max_age, S = S,
+  lap = mode_posterior_rw(y$age, y$deaths, y$exposure, st, max_age, S = S,
                           log10_lambdas = log10_lambdas)
 
-  # exact posterior: independence Metropolis-Hastings with the same proposal
-  g = rw_grid_cpp(D, E, 2L, log10_lambdas, drop)
+  # posterior sampling: independence Metropolis-Hastings; all grid values
+  # evaluated (drop = Inf) and proposed with positive probability
+  g = rw_grid_cpp(D, E, 2L, log10_lambdas, Inf)
   w = exp(g$logml - max(g$logml))
-  w = w / sum(w)
+  w = 0.99 * w / sum(w) + 0.01 / length(w)
   ch = rw_imh_cpp(D, E, g$eta, g$L, g$log10_lambda, w, n_iter, 2L)
-  mc = posterior_summary(d_from_eta(ch$eta), s$age, start_age, n_iter, 0.95, 0.1, 0.5,
+  mc = posterior_summary(d_from_eta(ch$eta), s$age, st, n_iter, 0.95, 0.1, 0.5,
                          return_draws = TRUE)
   ll_chain = g$log10_lambda[ch$cell + 1]
 
-  lab = sprintf("%s, %d", cs$country, cs$year)
+  lab = if (is.na(cs$scenario)) sprintf("%s, %d", cs$country, cs$year) else
+    sprintf("%s, N = %g, replication %d", cs$country, cs$N, cs$rep)
   for (meth in c("Laplace", "MCMC")) {
     p = if (meth == "Laplace") lap else mc
     summ[[paste(k, meth)]] = data.frame(cs, case = lab, method = meth,
@@ -121,33 +147,33 @@ cat("\nLargest differences, Laplace vs MCMC:",
 
 # ---- Table for the appendix -------------------------------------------------
 
-f2 = function(x) formatC(x, format = "f", digits = 2)
+f2 = function(x) formatC(x, format = "f", digits = 4)
 rows = sprintf("%s & %s & %s (%s, %s) & %s (%s, %s) & %s \\\\",
-               L$country, L$year,
+               L$country, ifelse(is.na(L$year), sprintf("rep. %d", L$rep), L$year),
                f2(L$mean), f2(L$q025), f2(L$q975), f2(M$mean), f2(M$q025), f2(M$q975),
                f2(M$acceptance))
 tab = c("\\begin{table}[htb!]",
         "\\centering",
-        "\\caption{RW2 posterior of the modal age at death computed with the Laplace approximation and with exact sampling (independence Metropolis--Hastings): posterior mean of $\\tilde{M}$ with 95\\% credible interval, and acceptance rate of the sampler. Women, starting age 50.}",
+        "\\caption{RW2 posterior of the modal age at death computed with the Laplace approximation and by posterior sampling (independence Metropolis--Hastings): posterior mean of $\\tilde{M}$ with 95\\% credible interval, and acceptance rate of the sampler. Women, starting age 50; simulated populations (scenarios a and d of Section~\\ref{sec:simulation}, $N = 10^3$), starting age 40.}",
         "\\label{tab:app_mcmc}",
         "\\small",
         "\\begin{tabular}{llccc}",
         "\\hline",
         " & & \\multicolumn{2}{c}{Modal age at death} & Acceptance \\\\",
-        "Country & Year & Laplace & Exact & rate \\\\",
+        "Population & Year & Laplace & Sampling & rate \\\\",
         "\\hline", rows, "\\hline", "\\end{tabular}", "\\end{table}")
 save_table(tab, "app_laplace_mcmc.tex", "mcmc_check")
 
 # ---- Figure -----------------------------------------------------------------
 
-probs = probs[probs$prob >= 0.001, ]
+probs = probs[probs$prob >= 0.001 & !grepl("^Simulated", probs$case), ]
 probs$case = factor(probs$case, levels = unique(summ$case))
-probs$method = factor(ifelse(probs$method == "MCMC", "Exact (MCMC)", "Laplace"),
-                      levels = c("Laplace", "Exact (MCMC)"))
+probs$method = factor(ifelse(probs$method == "MCMC", "Sampling (MCMC)", "Laplace"),
+                      levels = c("Laplace", "Sampling (MCMC)"))
 p = ggplot(probs, aes(age + 0.5, prob, fill = method)) +
   geom_col(position = position_dodge(width = 0.8), width = 0.8) +
   facet_wrap(~ case, nrow = 2, scales = "free") +
-  scale_fill_manual(values = c("Laplace" = "#0072B2", "Exact (MCMC)" = "#E69F00"),
+  scale_fill_manual(values = c("Laplace" = "#0072B2", "Sampling (MCMC)" = "#E69F00"),
                     name = NULL) +
   labs(x = "Age", y = "P(mode = x | data)") +
   theme_mode()

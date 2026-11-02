@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the paper below."
+title: "A Probabilistic Framework for Estimating the Modal Age at Death"
+authors:
+  - family-names: Patricio
+    given-names: Silvio C.
+    orcid: "https://orcid.org/0000-0002-1025-5571"
+    affiliation: "Interdisciplinary Center on Population Dynamics, University of Southern Denmark"
+  - family-names: Vazquez-Castillo
+    given-names: Paola
+    orcid: "https://orcid.org/0000-0001-9680-4721"
+    affiliation: "Interdisciplinary Center on Population Dynamics, University of Southern Denmark"
+license: MIT
+repository-code: "https://github.com/scpatricio/modal_age_posterior"
+preferred-citation:
+  type: article
+  title: "A Probabilistic Framework for Estimating the Modal Age at Death"
+  authors:
+    - family-names: Patricio
+      given-names: Silvio C.
+    - family-names: Vazquez-Castillo
+      given-names: Paola
+  identifiers:
+    - type: other
+      value: "arXiv:2411.09800"
+  url: "https://arxiv.org/abs/2411.09800"
+  year: 2024

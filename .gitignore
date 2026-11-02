@@ -1,0 +1,30 @@
+# System and R session files
+.DS_Store
+.Rhistory
+.RData
+.Rproj.user/
+
+# LaTeX build files
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+
+# HMD data: only deaths and exposures by single year are part of the repository
+Code/data/*/InputDB/
+Code/data/*/STATS/*
+!Code/data/*/STATS/Deaths_1x1.txt
+!Code/data/*/STATS/Exposures_1x1.txt
+
+# Local material not part of the repository
+Code/R/
+References/
+manuscript_V*.pdf
+Manuscript/main_before_RW2.tex

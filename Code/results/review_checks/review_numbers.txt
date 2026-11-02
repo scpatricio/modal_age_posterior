@@ -1,0 +1,28 @@
+== Part 1: change between 2019 and 2020 (RW2, starting age 40, S = 1e+05) ==
+Denmark: 2019 most probable age 89 (prob 0.6), mean 89.12 (88.37-89.9); 2020 most probable age 89 (prob 0.71), mean 89.56 (88.68-90.38); change 0.45 (-0.71 to 1.59); P(decline) 0.215
+France: 2019 most probable age 91 (prob 0.83), mean 91.84 (91.54-92.46); 2020 most probable age 91 (prob 0.95), mean 91.32 (90.95-91.58); change -0.52 (-1.24 to -0.09); P(decline) 0.993
+Japan: 2019 most probable age 93 (prob 0.56), mean 93.01 (92.72-93.28); 2020 most probable age 93 (prob 0.87), mean 93.21 (92.85-93.5); change 0.2 (-0.25 to 0.63); P(decline) 0.185
+Sweden: 2019 most probable age 90 (prob 0.89), mean 90.38 (89.84-90.99); 2020 most probable age 89 (prob 0.73), mean 89.85 (89.41-90.28); change -0.54 (-1.25 to 0.16); P(decline) 0.935
+
+== Part 2: interpolated mode of the true schedule (Gompertz, b = 0.14, starting age 40) ==
+true mode 90: modal interval [89, 90); interpolated 89.9875 (exact interval probabilities 89.9874); error -0.0125
+true mode 90.25: modal interval [90, 91); interpolated 90.2269 (exact interval probabilities 90.2268); error -0.0231
+true mode 90.5: modal interval [90, 91); interpolated 90.4712 (exact interval probabilities 90.4711); error -0.0288
+true mode 90.75: modal interval [90, 91); interpolated 90.724 (exact interval probabilities 90.7239); error -0.026
+largest absolute error: 0.0288
+
+== Part 3: posterior weight at the ends of the grid of log10 lambda (application, starting age 40) ==
+population-years: 261
+largest weight at log10 lambda = -1: 8.21e-64; at log10 lambda = 8: 0
+posterior mean of log10 lambda: range 1.89 to 4.92; grid values with weight > 0.001 lie within 1.5 to 6.25
+simulation, posterior mean of log10 lambda per replication: range 2.53 to 7.64
+
+== Part 4: P-spline bootstrap, smoothing parameter fixed vs re-selected (200 replications, 500 bootstrap samples) ==
+scenario a, N = 1000, smoothing fixed: coverage 0.94 (MC s.e. 0.017), mean width 0.94
+scenario d, N = 1000, smoothing fixed: coverage 0.89 (MC s.e. 0.022), mean width 3.27
+scenario a, N = 1e+06, smoothing fixed: coverage 0.905 (MC s.e. 0.021), mean width 0.03
+scenario d, N = 1e+06, smoothing fixed: coverage 0.78 (MC s.e. 0.029), mean width 0.19
+scenario a, N = 1000, smoothing reselected: coverage 0.96 (MC s.e. 0.014), mean width 1.84
+scenario d, N = 1000, smoothing reselected: coverage 0.935 (MC s.e. 0.017), mean width 5.28
+scenario a, N = 1e+06, smoothing reselected: coverage 0.97 (MC s.e. 0.012), mean width 0.06
+scenario d, N = 1e+06, smoothing reselected: coverage 0.795 (MC s.e. 0.029), mean width 0.19
